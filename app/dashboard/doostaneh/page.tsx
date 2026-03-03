@@ -61,7 +61,7 @@ export default function DoostanehDashboard() {
       )}
 
       <div style={{ marginTop: 18 }}>
-       <AdminActivity groupKey="doostaneh" />
+       <AdminActivity groupKey="doostaneh" /> 
       </div>
     </div>
   );
