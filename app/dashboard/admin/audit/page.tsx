@@ -281,7 +281,7 @@ export default async function AuditPage({
 </div>
           </div>
         </div>
-      </div>
+      
 
       <SessionFilterClient />
 
@@ -344,7 +344,7 @@ export default async function AuditPage({
           <div style={{ color: "#64748b" }}>No records found.</div>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
-            {{logs.map((log: any, idx: number) => {
+            {logs.map((log: any, idx: number) => {
   const isTopRowForSession = Boolean(sessionFilter) && idx === 0;
 
   return (
