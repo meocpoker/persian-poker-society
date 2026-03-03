@@ -1,3 +1,4 @@
+import React from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ConfirmSubmitButton from "./ConfirmSubmitButton";
@@ -80,22 +81,25 @@ export default async function SundaySessionPage(props: any) {
     );
   }
 
-    const statusLower = String(lifecycle.status).toLowerCase();
+  const statusLower = String((lifecycle as any)?.status).toLowerCase();
 
   // Canonical statuses: draft | active | locked | computed | archived
   // Also tolerate legacy: open | scheduled | closed
-  const isLocked = statusLower === "locked" || Boolean(lifecycle.can_unlock);
-  const isComputed = statusLower === "computed" || Boolean(lifecycle.already_computed);
-  const isActive =
-    statusLower === "active" ||
-    statusLower === "open"; // legacy support
+  const isLocked =
+    statusLower === "locked" || Boolean((lifecycle as any)?.can_unlock);
+  const isComputed =
+    statusLower === "computed" ||
+    Boolean((lifecycle as any)?.already_computed);
+  const isActive = statusLower === "active" || statusLower === "open"; // legacy support
 
   let statusTone: "green" | "yellow" | "blue" | "gray" | "red" = "gray";
   if (statusLower === "active" || statusLower === "open") statusTone = "green";
   else if (statusLower === "locked") statusTone = "yellow";
   else if (statusLower === "computed") statusTone = "blue";
-  else if (statusLower === "draft" || statusLower === "scheduled") statusTone = "gray";
-  else if (statusLower === "archived" || statusLower === "closed") statusTone = "gray";
+  else if (statusLower === "draft" || statusLower === "scheduled")
+    statusTone = "gray";
+  else if (statusLower === "archived" || statusLower === "closed")
+    statusTone = "gray";
   else statusTone = "red";
 
   const buttonStyle: React.CSSProperties = {
@@ -114,89 +118,108 @@ export default async function SundaySessionPage(props: any) {
       <h1 style={{ fontSize: 26, fontWeight: 900 }}>
         Sunday Session Control Panel
       </h1>
-      <h1 style={{ fontSize: 26, fontWeight: 900 }}>
-  Sunday Session Control Panel
-</h1>
 
-<div style={{ marginTop: 8 }}>
-  <a
-    href={`/dashboard/admin/audit?session=${sessionId}`}
-    style={{
-  fontSize: 13,
-  fontWeight: 800,
-  textDecoration: "underline",
-  color: "#93c5fd",
-}}
-  >
-    View in Audit Log
-  </a>
-</div>
-<div style={{ marginTop: 8 }}>
-  <a
-    href={`/dashboard/admin/audit?session=${sessionId}`}
-    style={{
-      fontSize: 12,
-      fontWeight: 800,
-      textDecoration: "underline",
-      color: "#0b1220",
-    }}
-  >
-    View in Audit Log
-  </a>
-</div>
+      <div style={{ marginTop: 8 }}>
+        <a
+          href={`/dashboard/admin/audit?session=${sessionId}`}
+          style={{
+            fontSize: 13,
+            fontWeight: 800,
+            textDecoration: "underline",
+            color: "#93c5fd",
+          }}
+        >
+          View in Audit Log
+        </a>
+      </div>
+
       {/* Badges */}
-      <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Badge label={`Status: ${lifecycle.status}`} tone={statusTone} />
+      <div
+        style={{
+          marginTop: 10,
+          display: "flex",
+          gap: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        <Badge
+          label={`Status: ${(lifecycle as any)?.status ?? "unknown"}`}
+          tone={statusTone}
+        />
         {isActive && <Badge label="Active" tone="green" />}
         {isLocked && <Badge label="Locked" tone="yellow" />}
         {isComputed && <Badge label="Computed" tone="blue" />}
       </div>
 
       <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
           <div>
-            <b>Role:</b> {lifecycle.role}
+            <b>Role:</b> {(lifecycle as any)?.role}
           </div>
           <div>
-            <b>Is Admin:</b> {String(lifecycle.is_admin)}
+            <b>Is Admin:</b> {String((lifecycle as any)?.is_admin)}
           </div>
           <div>
-            <b>Already Computed:</b> {String(lifecycle.already_computed)}
+            <b>Already Computed:</b>{" "}
+            {String((lifecycle as any)?.already_computed)}
           </div>
         </div>
 
         <hr style={{ borderColor: "#1f2937" }} />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
           <div>
-            <b>can_lock:</b> {String(lifecycle.can_lock)}
+            <b>can_lock:</b> {String((lifecycle as any)?.can_lock)}
           </div>
           <div>
-            <b>can_unlock:</b> {String(lifecycle.can_unlock)}
+            <b>can_unlock:</b> {String((lifecycle as any)?.can_unlock)}
           </div>
           <div>
-            <b>can_compute:</b> {String(lifecycle.can_compute)}
+            <b>can_compute:</b> {String((lifecycle as any)?.can_compute)}
           </div>
         </div>
 
-        {lifecycle.can_lock && (
-          <form action={`/dashboard/sunday/sessions/${sessionId}/lock`} method="post">
+        {(lifecycle as any)?.can_lock && (
+          <form
+            action={`/dashboard/sunday/sessions/${sessionId}/lock`}
+            method="post"
+          >
             <button type="submit" style={buttonStyle}>
               Lock session
             </button>
           </form>
         )}
 
-        {lifecycle.can_unlock && (
-          <form action={`/dashboard/sunday/sessions/${sessionId}/unlock`} method="post">
+        {(lifecycle as any)?.can_unlock && (
+          <form
+            action={`/dashboard/sunday/sessions/${sessionId}/unlock`}
+            method="post"
+          >
             <button type="submit" style={buttonStyle}>
               Unlock session
             </button>
           </form>
         )}
 
-        {lifecycle.can_compute && (
-          <form action={`/dashboard/sunday/sessions/${sessionId}/compute`} method="post">
+        {(lifecycle as any)?.can_compute && (
+          <form
+            action={`/dashboard/sunday/sessions/${sessionId}/compute`}
+            method="post"
+          >
             <ConfirmSubmitButton
               style={buttonStyle}
               confirmText={

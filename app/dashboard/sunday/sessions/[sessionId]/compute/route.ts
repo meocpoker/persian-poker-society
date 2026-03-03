@@ -40,7 +40,7 @@ export async function POST(req: Request, ctx: any) {
     return NextResponse.json({ ok: false, error: lifeErr.message }, { status: 400 });
   }
 
-  if (!lifecycle?.can_compute) {
+  if (!(lifecycle as any)?.can_compute) {
     return NextResponse.json({ ok: false, error: "Not allowed" }, { status: 403 });
   }
 

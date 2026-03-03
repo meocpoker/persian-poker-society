@@ -53,7 +53,7 @@ export default function DoostanehSessionPage() {
       </div>
 
       <div style={{ marginTop: 18 }}>
-        <AdminActivity />
+        <AdminActivity groupKey="doostaneh" />
       </div>
     </div>
   );

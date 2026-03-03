@@ -113,7 +113,7 @@ export default async function SundayDashboard() {
 
       const member = members?.find((m: any) => m.user_id === r.user_id);
 
-      const name = member?.profiles?.full_name || member?.profiles?.email || "Unnamed";
+     const name = (member as any)?.profiles?.full_name || (member as any)?.profiles?.email || "Unnamed";
 
       goingNames.get(r.event_id)!.push(name);
     }
