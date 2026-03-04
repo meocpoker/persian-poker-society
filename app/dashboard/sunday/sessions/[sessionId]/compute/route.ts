@@ -1,3 +1,4 @@
+// app/dashboard/sunday/sessions/[sessionId]/compute/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -15,7 +16,7 @@ export async function POST(req: Request, ctx: any) {
   const user = userData?.user;
 
   if (userErr || !user) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    return NextResponse.redirect(new URL("/login", req.url), { status: 303 });
   }
 
   const url = new URL(req.url);
@@ -44,25 +45,18 @@ export async function POST(req: Request, ctx: any) {
     return NextResponse.json({ ok: false, error: "Not allowed" }, { status: 403 });
   }
 
-  // ✅ Mark session computed (this is what flips already_computed)
-  const { error: updateError } = await supabase
-    .from("sessions")
-    .update({
-      computed_at: new Date().toISOString(),
-      status: "computed",
-    })
-    .eq("id", sessionId);
-
-  if (updateError) {
-    return NextResponse.json({ ok: false, error: updateError.message }, { status: 400 });
-  }
-
-  // 🧾 Log compute action (best-effort)
-  await supabase.from("admin_action_log").insert({
-    session_id: sessionId,
-    action: "compute_payout",
-    status: "ok",
+  // ✅ Compute via RPC (audit logging happens inside RPC)
+  const { error: computeErr } = await supabase.rpc("admin_compute_payout", {
+    p_session_id: sessionId,
   });
 
-  return NextResponse.json({ ok: true });
+  if (computeErr) {
+    return NextResponse.json({ ok: false, error: computeErr.message }, { status: 400 });
+  }
+
+  // PRG pattern: redirect back to the session page (prevents back-button hydration weirdness)
+  const dest = new URL(`/dashboard/sunday/sessions/${sessionId}`, req.url);
+  const res = NextResponse.redirect(dest, { status: 303 });
+  res.headers.set("Cache-Control", "no-store");
+  return res;
 }

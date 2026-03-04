@@ -1,17 +1,9 @@
+// app/dashboard/admin/audit/page.tsx
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import SessionFilterClient from "./SessionFilterClient";
 import { sessionDisplayName } from "@/lib/sessions/sessionDisplayName";
-
-function buildQueryString(params: Record<string, string | null | undefined>) {
-  const sp = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v && String(v).trim().length > 0) sp.set(k, String(v).trim());
-  });
-  const s = sp.toString();
-  return s ? `?${s}` : "";
-}
 
 export default async function AuditPage({
   searchParams,
@@ -57,26 +49,6 @@ export default async function AuditPage({
     sessionRow = sRow ?? null;
   }
 
-  const { data: groupsRaw } = await supabase
-    .from("admin_action_log")
-    .select("group_key")
-    .order("group_key", { ascending: true })
-    .limit(200);
-
-  const groups = Array.from(
-    new Set((groupsRaw ?? []).map((r: any) => String(r.group_key)).filter(Boolean))
-  );
-
-  const { data: actionsRaw } = await supabase
-    .from("admin_action_log")
-    .select("action")
-    .order("action", { ascending: true })
-    .limit(200);
-
-  const actions = Array.from(
-    new Set((actionsRaw ?? []).map((r: any) => String(r.action)).filter(Boolean))
-  );
-
   let query = supabase
     .from("admin_action_log")
     .select("*")
@@ -115,65 +87,95 @@ export default async function AuditPage({
     );
   }
 
-  const clearHref = "/dashboard/admin/audit";
-
   return (
-    <div style={{ padding: 24 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 800 }}>Admin Audit Log</h1>
+    <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0 }}>
+            Admin Audit Log
+          </h1>
 
-      <SessionFilterClient />
+          {sessionFilter && sessionRow && (
+            <div style={{ marginTop: 8, fontSize: 13, fontWeight: 800 }}>
+              Session: {sessionDisplayName(sessionRow)}
+            </div>
+          )}
+        </div>
 
-      <div style={{ marginTop: 12 }}>
-        {sessionFilter && sessionRow && (
-          <div style={{ marginBottom: 12, fontWeight: 900 }}>
-            Session: {sessionDisplayName(sessionRow)}
-          </div>
-        )}
+        <div style={{ fontSize: 13 }}>
+          <Link href="/dashboard" className="underline">
+            Back to Dashboard
+          </Link>
+        </div>
       </div>
 
-      <div style={{ marginTop: 20 }}>
+      <div style={{ marginTop: 14 }}>
+        <SessionFilterClient />
+      </div>
+
+      <div style={{ marginTop: 18 }}>
         {!logs?.length ? (
           <div style={{ color: "#64748b" }}>No records found.</div>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
             {logs.map((log: any, idx: number) => {
-              const isTopRowForSession =
-                Boolean(sessionFilter) && idx === 0;
+              const highlight = Boolean(sessionFilter) && idx === 0;
+
+              const dt = new Date(log.created_at);
+              const when = dt.toISOString().replace("T", " ").replace("Z", " UTC");
+
+              const sessionHref =
+                log.session_id && log.group_key === "sunday"
+                  ? `/dashboard/sunday/sessions/${log.session_id}`
+                  : log.session_id && log.group_key === "doostaneh"
+                  ? `/dashboard/doostaneh/sessions/${log.session_id}`
+                  : null;
 
               return (
                 <div
                   key={log.id}
                   style={{
-                    border: isTopRowForSession
-                      ? "2px solid rgba(15,23,42,0.55)"
+                    border: highlight
+                      ? "2px solid rgba(29,78,216,0.45)"
                       : "1px solid rgba(15,23,42,0.12)",
                     borderRadius: 12,
                     padding: 12,
-                    background: isTopRowForSession
-                      ? "rgba(15,23,42,0.04)"
-                      : "white",
+                    background: highlight ? "rgba(29,78,216,0.05)" : "white",
                   }}
                 >
-                  <div style={{ fontSize: 12, color: "#64748b" }}>
-                    {new Date(log.created_at)
-                      .toISOString()
-                      .replace("T", " ")
-                      .replace("Z", " UTC")}
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div style={{ fontWeight: 900 }}>
+                      {log.group_key} · {log.action}
+                    </div>
+
+                    <div style={{ fontSize: 12, color: "#64748b" }}>{when}</div>
                   </div>
 
-                  <div style={{ fontWeight: 900 }}>
-                    {log.group_key} · {log.action}
+                  <div style={{ marginTop: 6, fontSize: 13 }}>
+                    <span style={{ color: "#64748b" }}>Status:</span>{" "}
+                    <b>{log.status}</b>
                   </div>
 
-                  <div style={{ fontSize: 13 }}>
-                    Session:{" "}
-                    {log.session_id ? (
+                  <div style={{ marginTop: 6, fontSize: 13 }}>
+                    <span style={{ color: "#64748b" }}>Session:</span>{" "}
+                    {sessionHref ? (
                       <Link
-                        href={
-                          log.group_key === "sunday"
-                            ? `/dashboard/sunday/sessions/${log.session_id}`
-                            : `/dashboard/doostaneh/sessions/${log.session_id}`
-                        }
+                        href={sessionHref}
                         style={{
                           fontFamily: "monospace",
                           textDecoration: "underline",
@@ -189,14 +191,8 @@ export default async function AuditPage({
                     )}
                   </div>
 
-                  <div style={{ fontSize: 13 }}>
-                    Status: <b>{log.status}</b>
-                  </div>
-
                   {log.message && (
-                    <div style={{ fontSize: 13, marginTop: 4 }}>
-                      {log.message}
-                    </div>
+                    <div style={{ marginTop: 8, fontSize: 13 }}>{log.message}</div>
                   )}
                 </div>
               );

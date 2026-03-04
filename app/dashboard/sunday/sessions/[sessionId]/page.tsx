@@ -1,7 +1,9 @@
+// app/dashboard/sunday/sessions/[sessionId]/page.tsx
 import React from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ConfirmSubmitButton from "./ConfirmSubmitButton";
+import PayoutSummary from "./PayoutSummary";
 
 function Badge({
   label,
@@ -32,6 +34,33 @@ function Badge({
   };
 
   return <span style={style}>{label}</span>;
+}
+
+function PrimaryButton({
+  children,
+  variant,
+}: {
+  children: React.ReactNode;
+  variant?: "default" | "danger";
+}) {
+  const danger = variant === "danger";
+  return (
+    <button
+      type="submit"
+      style={{
+        width: "100%",
+        padding: "12px 14px",
+        borderRadius: 12,
+        border: `1px solid ${danger ? "#991b1b" : "#334155"}`,
+        background: danger ? "#3f0a0a" : "#0b1220",
+        color: "white",
+        cursor: "pointer",
+        fontWeight: 900,
+      }}
+    >
+      {children}
+    </button>
+  );
 }
 
 export default async function SundaySessionPage(props: any) {
@@ -83,14 +112,9 @@ export default async function SundaySessionPage(props: any) {
 
   const statusLower = String((lifecycle as any)?.status).toLowerCase();
 
-  // Canonical statuses: draft | active | locked | computed | archived
-  // Also tolerate legacy: open | scheduled | closed
-  const isLocked =
-    statusLower === "locked" || Boolean((lifecycle as any)?.can_unlock);
   const isComputed =
     statusLower === "computed" ||
     Boolean((lifecycle as any)?.already_computed);
-  const isActive = statusLower === "active" || statusLower === "open"; // legacy support
 
   let statusTone: "green" | "yellow" | "blue" | "gray" | "red" = "gray";
   if (statusLower === "active" || statusLower === "open") statusTone = "green";
@@ -102,137 +126,122 @@ export default async function SundaySessionPage(props: any) {
     statusTone = "gray";
   else statusTone = "red";
 
-  const buttonStyle: React.CSSProperties = {
-    marginTop: 12,
-    padding: "10px 14px",
-    borderRadius: 10,
-    border: "1px solid #334155",
-    background: "#0b1220",
-    color: "white",
-    cursor: "pointer",
-    width: "fit-content",
-  };
-
   return (
-    <div style={{ padding: 24 }}>
-      <h1 style={{ fontSize: 26, fontWeight: 900 }}>
-        Sunday Session Control Panel
-      </h1>
-
-      <div style={{ marginTop: 8 }}>
-        <a
-          href={`/dashboard/admin/audit?session=${sessionId}`}
-          style={{
-            fontSize: 13,
-            fontWeight: 800,
-            textDecoration: "underline",
-            color: "#93c5fd",
-          }}
-        >
-          View in Audit Log
-        </a>
-      </div>
-
-      {/* Badges */}
+    <div style={{ padding: 24, maxWidth: 920, margin: "0 auto" }}>
       <div
         style={{
-          marginTop: 10,
           display: "flex",
-          gap: 10,
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 12,
           flexWrap: "wrap",
         }}
       >
-        <Badge
-          label={`Status: ${(lifecycle as any)?.status ?? "unknown"}`}
-          tone={statusTone}
-        />
-        {isActive && <Badge label="Active" tone="green" />}
-        {isLocked && <Badge label="Locked" tone="yellow" />}
-        {isComputed && <Badge label="Computed" tone="blue" />}
-      </div>
+        <div>
+          <h1 style={{ fontSize: 26, fontWeight: 900, margin: 0 }}>
+            Sunday Session
+          </h1>
 
-      <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <b>Role:</b> {(lifecycle as any)?.role}
+          <div style={{ marginTop: 8, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Badge
+              label={`Status: ${(lifecycle as any)?.status ?? "unknown"}`}
+              tone={statusTone}
+            />
+            {isComputed && <Badge label="Payouts Ready" tone="blue" />}
           </div>
-          <div>
-            <b>Is Admin:</b> {String((lifecycle as any)?.is_admin)}
-          </div>
-          <div>
-            <b>Already Computed:</b>{" "}
-            {String((lifecycle as any)?.already_computed)}
-          </div>
-        </div>
 
-        <hr style={{ borderColor: "#1f2937" }} />
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <b>can_lock:</b> {String((lifecycle as any)?.can_lock)}
-          </div>
-          <div>
-            <b>can_unlock:</b> {String((lifecycle as any)?.can_unlock)}
-          </div>
-          <div>
-            <b>can_compute:</b> {String((lifecycle as any)?.can_compute)}
-          </div>
-        </div>
-
-        {(lifecycle as any)?.can_lock && (
-          <form
-            action={`/dashboard/sunday/sessions/${sessionId}/lock`}
-            method="post"
-          >
-            <button type="submit" style={buttonStyle}>
-              Lock session
-            </button>
-          </form>
-        )}
-
-        {(lifecycle as any)?.can_unlock && (
-          <form
-            action={`/dashboard/sunday/sessions/${sessionId}/unlock`}
-            method="post"
-          >
-            <button type="submit" style={buttonStyle}>
-              Unlock session
-            </button>
-          </form>
-        )}
-
-        {(lifecycle as any)?.can_compute && (
-          <form
-            action={`/dashboard/sunday/sessions/${sessionId}/compute`}
-            method="post"
-          >
-            <ConfirmSubmitButton
-              style={buttonStyle}
-              confirmText={
-                `Compute payouts for this session?\n\n` +
-                `Session: ${sessionId}\n\n` +
-                `This will post payouts to the ledger. Continue?`
-              }
+          <div style={{ marginTop: 10 }}>
+            <a
+              href={`/dashboard/admin/audit?session=${sessionId}`}
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                textDecoration: "underline",
+                color: "#93c5fd",
+              }}
             >
-              Compute payouts
-            </ConfirmSubmitButton>
-          </form>
-        )}
+              View in Audit Log
+            </a>
+          </div>
+        </div>
+
+        <div style={{ minWidth: 260, flex: "0 0 320px" }}>
+          <div
+            style={{
+              border: "1px solid #1f2937",
+              borderRadius: 14,
+              padding: 14,
+              background: "#0b1220",
+              color: "white",
+            }}
+          >
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>Session Actions</div>
+            <div style={{ fontSize: 12, color: "#cbd5e1", marginBottom: 12 }}>
+              Use these buttons to move the session forward.
+            </div>
+
+            <div style={{ display: "grid", gap: 10 }}>
+              {(lifecycle as any)?.can_lock && (
+                <form
+                  action={`/dashboard/sunday/sessions/${sessionId}/lock`}
+                  method="post"
+                >
+                  <PrimaryButton>Lock session</PrimaryButton>
+                </form>
+              )}
+
+              {(lifecycle as any)?.can_unlock && (
+                <form
+                  action={`/dashboard/sunday/sessions/${sessionId}/unlock`}
+                  method="post"
+                >
+                  <PrimaryButton variant="danger">Unlock session</PrimaryButton>
+                </form>
+              )}
+
+              {(lifecycle as any)?.can_compute && (
+                <form
+                  action={`/dashboard/sunday/sessions/${sessionId}/compute`}
+                  method="post"
+                >
+                  <ConfirmSubmitButton
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 12,
+                      border: "1px solid #1d4ed8",
+                      background: "#0a1f44",
+                      color: "white",
+                      cursor: "pointer",
+                      fontWeight: 900,
+                    }}
+                    confirmText={
+                      `Compute payouts for this session?\n\n` +
+                      `Session: ${sessionId}\n\n` +
+                      `This will post payouts to the ledger. Continue?`
+                    }
+                  >
+                    Compute payouts
+                  </ConfirmSubmitButton>
+                </form>
+              )}
+
+              {!Boolean((lifecycle as any)?.can_lock) &&
+                !Boolean((lifecycle as any)?.can_unlock) &&
+                !Boolean((lifecycle as any)?.can_compute) && (
+                  <div style={{ fontSize: 13, color: "#cbd5e1" }}>
+                    No actions available.
+                  </div>
+                )}
+            </div>
+          </div>
+        </div>
       </div>
+
+      <PayoutSummary
+        sessionId={sessionId}
+        status={String((lifecycle as any)?.status ?? "").toLowerCase()}
+      />
     </div>
   );
 }
