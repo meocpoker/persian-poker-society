@@ -27,7 +27,7 @@ export default async function PayoutSummary({ sessionId, status }: Props) {
 
   if (!ledgerRows || ledgerRows.length === 0) return null;
 
-  const userIds = Array.from(new Set(ledgerRows.map(r => r.user_id)));
+  const userIds = Array.from(new Set(ledgerRows.map((r: any) => r.user_id)));
 
   const nameById = new Map<string, string>();
   if (userIds.length > 0) {
@@ -37,10 +37,7 @@ export default async function PayoutSummary({ sessionId, status }: Props) {
       .in("id", userIds);
 
     (profiles ?? []).forEach((p: any) => {
-      nameById.set(
-        p.id,
-        p.full_name ?? p.email ?? p.id.slice(0, 8)
-      );
+      nameById.set(p.id, p.full_name ?? p.email ?? p.id.slice(0, 8));
     });
   }
 
@@ -50,18 +47,19 @@ export default async function PayoutSummary({ sessionId, status }: Props) {
       const name = nameById.get(r.user_id) ?? r.user_id.slice(0, 8);
       return { userId: r.user_id, name, net };
     })
-    .sort((a, b) => b.net - a.net);
+    .sort((a: any, b: any) => b.net - a.net);
 
   return (
     <div className="mt-6 rounded-lg border bg-white p-4">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Payout Summary</h2>
-        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+        <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
           Computed
         </span>
       </div>
 
-      <div className="overflow-hidden rounded-md border">
+      {/* Desktop/tablet */}
+      <div className="hidden overflow-hidden rounded-md border sm:block">
         <div className="grid grid-cols-2 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600">
           <div>Player</div>
           <div className="text-right">Net</div>
@@ -87,6 +85,34 @@ export default async function PayoutSummary({ sessionId, status }: Props) {
         </div>
       </div>
 
+      {/* Mobile/cards */}
+      <div className="grid gap-2 sm:hidden">
+        {payouts.map((p) => (
+          <div
+            key={p.userId}
+            className="flex items-center justify-between gap-3 rounded-md border px-3 py-3"
+          >
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold">{p.name}</div>
+              <div className="mt-0.5 text-xs text-gray-500">
+                Net result
+              </div>
+            </div>
+
+            <div
+              className={`shrink-0 text-sm font-extrabold ${
+                p.net > 0
+                  ? "text-green-600"
+                  : p.net < 0
+                  ? "text-red-600"
+                  : "text-gray-700"
+              }`}
+            >
+              {formatMoney(p.net)}
+            </div>
           </div>
+        ))}
+      </div>
+    </div>
   );
 }
