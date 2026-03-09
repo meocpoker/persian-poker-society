@@ -5,7 +5,6 @@ import { useState } from "react";
 export default function CreateTournamentButton() {
   const [open, setOpen] = useState(false);
   const [dt, setDt] = useState<string>(() => {
-    // default to "now" in datetime-local format
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
     const y = now.getFullYear();
@@ -21,8 +20,8 @@ export default function CreateTournamentButton() {
   async function onCreate() {
     setErr(null);
     setBusy(true);
+
     try {
-      // datetime-local -> ISO
       const startsAtIso = new Date(dt).toISOString();
 
       const res = await fetch("/api/doostaneh/tournaments/open", {
@@ -47,13 +46,14 @@ export default function CreateTournamentButton() {
       <button
         onClick={() => setOpen(true)}
         style={{
-          padding: "10px 12px",
-          borderRadius: 10,
-          border: "1px solid #1f2937",
-          background: "#0b1220",
-          color: "white",
-          fontWeight: 800,
+          padding: "12px 16px",
+          borderRadius: 14,
+          border: "1px solid #1F7A63",
+          background: "#1F7A63",
+          color: "#FFFDF8",
+          fontWeight: 900,
           cursor: "pointer",
+          boxShadow: "0 10px 24px rgba(31, 122, 99, 0.22)",
         }}
       >
         + Create Doostaneh Tournament
@@ -64,7 +64,7 @@ export default function CreateTournamentButton() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.5)",
+            background: "rgba(33, 29, 24, 0.38)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -75,55 +75,95 @@ export default function CreateTournamentButton() {
           <div
             style={{
               width: "100%",
-              maxWidth: 520,
-              borderRadius: 14,
-              border: "1px solid #1f2937",
-              background: "#0b1220",
-              color: "white",
-              padding: 16,
+              maxWidth: 560,
+              borderRadius: 22,
+              border: "1px solid #E3E0D8",
+              background: "#FFFCF7",
+              color: "#17342D",
+              padding: 22,
+              boxShadow: "0 24px 60px rgba(31, 42, 55, 0.12)",
             }}
           >
-            <div style={{ fontSize: 16, fontWeight: 900, marginBottom: 10 }}>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 800,
+                letterSpacing: 1.1,
+                textTransform: "uppercase",
+                color: "#C89B3C",
+              }}
+            >
+              New Tournament
+            </div>
+
+            <div style={{ fontSize: 24, fontWeight: 900, marginTop: 8 }}>
               Create Doostaneh Tournament
             </div>
 
-            <div style={{ fontSize: 12, color: "#cbd5e1", marginBottom: 10 }}>
-              Choose date/time (you can edit later).
+            <div style={{ fontSize: 14, color: "#5F6B66", marginTop: 10 }}>
+              Choose the session date and time. You can manage players and winners on the next screen.
             </div>
 
-            <label style={{ display: "block", fontSize: 12, color: "#cbd5e1", marginBottom: 6 }}>
-              Starts at
-            </label>
-            <input
-              type="datetime-local"
-              value={dt}
-              onChange={(e) => setDt(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: "1px solid #334155",
-                background: "#0f172a",
-                color: "white",
-              }}
-            />
+            <div style={{ marginTop: 18 }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#5F6B66",
+                  marginBottom: 8,
+                }}
+              >
+                Starts at
+              </label>
+
+              <input
+                type="datetime-local"
+                value={dt}
+                onChange={(e) => setDt(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px 14px",
+                  borderRadius: 14,
+                  border: "1px solid #D9D3C7",
+                  background: "#F8F3EA",
+                  color: "#17342D",
+                  fontSize: 14,
+                }}
+              />
+            </div>
 
             {err && (
-              <div style={{ marginTop: 10, color: "#fecaca", fontSize: 12 }}>
+              <div
+                style={{
+                  marginTop: 14,
+                  color: "#8B1E2D",
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
                 Error: {err}
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 14 }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                justifyContent: "flex-end",
+                marginTop: 22,
+                flexWrap: "wrap",
+              }}
+            >
               <button
                 onClick={() => setOpen(false)}
                 disabled={busy}
                 style={{
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: "1px solid #334155",
-                  background: "transparent",
-                  color: "white",
+                  padding: "11px 14px",
+                  borderRadius: 14,
+                  border: "1px solid #D9D3C7",
+                  background: "#FFFDF8",
+                  color: "#4E5B55",
                   fontWeight: 800,
                   cursor: "pointer",
                   opacity: busy ? 0.6 : 1,
@@ -136,17 +176,17 @@ export default function CreateTournamentButton() {
                 onClick={onCreate}
                 disabled={busy}
                 style={{
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: "1px solid #1f2937",
-                  background: "#16a34a",
-                  color: "white",
+                  padding: "11px 16px",
+                  borderRadius: 14,
+                  border: "1px solid #1F7A63",
+                  background: "#1F7A63",
+                  color: "#FFFDF8",
                   fontWeight: 900,
                   cursor: "pointer",
                   opacity: busy ? 0.6 : 1,
                 }}
               >
-                {busy ? "Creating..." : "Create"}
+                {busy ? "Creating..." : "Create Tournament"}
               </button>
             </div>
           </div>

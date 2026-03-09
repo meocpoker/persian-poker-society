@@ -39,5 +39,18 @@ export async function GET(req: Request, ctx: any) {
 
   if (eErr) return NextResponse.json({ ok: false, error: eErr.message }, { status: 400 });
 
-  return NextResponse.json({ ok: true, session, players, entries });
+  const { data: ledger, error: lErr } = await supabase
+    .from("ledger_transactions")
+    .select("registry_player_id, delta_usd, txn_type")
+    .eq("session_id", sessionId);
+
+  if (lErr) return NextResponse.json({ ok: false, error: lErr.message }, { status: 400 });
+
+  return NextResponse.json({
+    ok: true,
+    session,
+    players,
+    entries,
+    ledger
+  });
 }
