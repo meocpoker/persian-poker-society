@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ComputeButton from "./ComputeButton";
 import AdminActivity from "./AdminActivity";
+import CreateTournamentButton from "./CreateTournamentButton";
 
 function DoostanehDashboardInner() {
   const searchParams = useSearchParams();
@@ -12,8 +13,25 @@ function DoostanehDashboardInner() {
 
   return (
     <div style={{ padding: 20 }}>
-      <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 10 }}>
-        Doostaneh Lifecycle Panel
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ fontSize: 20, fontWeight: 700 }}>Doostaneh</div>
+        <CreateTournamentButton />
+      </div>
+
+      <div style={{ fontSize: 12, opacity: 0.75, marginTop: 6 }}>
+        Create a new tournament, then manage players + winners inside the session page.
+      </div>
+
+      <div style={{ marginTop: 18, fontSize: 18, fontWeight: 800 }}>
+        Lifecycle Panel
       </div>
 
       {sessionId ? (
@@ -22,6 +40,7 @@ function DoostanehDashboardInner() {
             <div style={{ fontSize: 12, opacity: 0.75 }}>
               Session from Audit Link:
             </div>
+
             <div
               style={{
                 display: "flex",
@@ -56,7 +75,7 @@ function DoostanehDashboardInner() {
         <div className="rounded-lg border p-3">
           <div className="text-sm font-semibold">Session actions</div>
           <div className="mt-2 text-sm text-gray-600">
-            No session selected. Open a session from the Audit Log.
+            No session selected. Create a new tournament above, or open a session from the Audit Log.
           </div>
         </div>
       )}

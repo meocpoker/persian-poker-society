@@ -1,4 +1,3 @@
-// app/dashboard/doostaneh/ComputeButton.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -34,9 +33,10 @@ export default function ComputeButton({
   async function refresh() {
     setErr(null);
 
-    const { data, error } = await supabase.rpc("admin_session_lifecycle", {
-      p_session_id: sessionId,
-    });
+    // IMPORTANT: parameter name is session_id (not p_session_id) in your function
+const { data, error } = await supabase.rpc("admin_session_lifecycle", {
+  p_session_id: sessionId,
+});
 
     if (error) {
       setErr(error.message);
@@ -66,9 +66,7 @@ export default function ComputeButton({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, groupKey]);
 
-  async function doAction(
-    fnName: "admin_lock_session" | "admin_unlock_session" | "admin_compute_payout"
-  ) {
+  async function doAction(fnName: "admin_lock_session" | "admin_unlock_session") {
     setBusy(true);
     setErr(null);
 
@@ -106,12 +104,7 @@ export default function ComputeButton({
           <div style={{ fontSize: 13, color: "#cbd5e1" }}>Loading…</div>
         )}
 
-        <button
-          style={buttonBase}
-          onClick={refresh}
-          disabled={busy}
-          aria-disabled={busy}
-        >
+        <button style={buttonBase} onClick={refresh} disabled={busy} aria-disabled={busy}>
           Refresh
         </button>
       </div>
@@ -157,13 +150,30 @@ export default function ComputeButton({
           }}
           disabled={busy}
           aria-disabled={busy}
-          onClick={() => {
-            const ok = window.confirm(
-              `Compute payouts for this session?\n\nSession: ${sessionId}\n\nThis will post payouts to the ledger. Continue?`
-            );
-            if (!ok) return;
-            doAction("admin_compute_payout");
-          }}
+onClick={async () => {
+  const ok = window.confirm(
+    `Compute payouts for this session?\n\nSession: ${sessionId}\n\nThis will post payouts to the ledger. Continue?`
+  );
+  if (!ok) return;
+
+  setBusy(true);
+  setErr(null);
+
+  const { error } = await supabase.rpc("compute_doostaneh_tournament", {
+  p_session_id: sessionId,
+});
+
+  if (error) {
+    setErr(error.message);
+    setBusy(false);
+    await refresh();
+    return;
+  }
+
+  await refresh();
+  setBusy(false);
+  onChanged?.();
+}}
         >
           Compute payouts
         </button>
