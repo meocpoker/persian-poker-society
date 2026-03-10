@@ -300,12 +300,13 @@ export default async function SundaySessionPage(props: any) {
 
   return (
     <div
-      style={{
-        minHeight: "100%",
-        background: "linear-gradient(180deg, #FAF6EF 0%, #F7F1E7 100%)",
-        padding: 24,
-      }}
-    >
+  style={{
+    width: "100%",
+    minHeight: "100vh",
+    background: "linear-gradient(180deg, #FAF6EF 0%, #F7F1E7 100%)",
+    padding: 24,
+  }}
+>
       <div style={{ maxWidth: 1180, margin: "0 auto" }}>
         <div
           style={{
