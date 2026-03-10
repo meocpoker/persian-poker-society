@@ -74,19 +74,25 @@ export default function SundayAdminTableClient({
   return (
     <div
       style={{
-        marginTop: 24,
-        border: "1px solid #e5e7eb",
-        borderRadius: 14,
-        padding: 16,
-        background: "white",
+        marginTop: 18,
+        border: "1px solid #E3E0D8",
+        borderRadius: 20,
+        padding: 18,
+        background: "#FFFCF7",
+        boxShadow: "0 10px 30px rgba(31, 42, 55, 0.05)",
       }}
     >
-      <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 12 }}>
+      <div style={{ fontSize: 18, fontWeight: 900, color: "#17342D" }}>
         Sunday Player Entry
+      </div>
+
+      <div style={{ fontSize: 13, color: "#6A746F", marginTop: 6 }}>
+        Add approved Sunday players, then enter one total buy-in and one total cash-out for each player.
       </div>
 
       <div
         style={{
+          marginTop: 16,
           display: "flex",
           gap: 10,
           flexWrap: "wrap",
@@ -98,10 +104,14 @@ export default function SundayAdminTableClient({
           onChange={(e) => setSelectedPlayerId(e.target.value)}
           disabled={disabled || busy}
           style={{
-            minWidth: 240,
-            padding: "10px 12px",
-            borderRadius: 10,
-            border: "1px solid #cbd5e1",
+            minWidth: 260,
+            padding: "12px 14px",
+            borderRadius: 14,
+            border: "1px solid #D9D3C7",
+            background: "#F8F3EA",
+            color: "#17342D",
+            fontSize: 14,
+            opacity: disabled || busy ? 0.7 : 1,
           }}
         >
           <option value="">Add approved Sunday player...</option>
@@ -117,12 +127,12 @@ export default function SundayAdminTableClient({
           onClick={addPlayer}
           disabled={disabled || busy || !selectedPlayerId}
           style={{
-            padding: "10px 14px",
-            borderRadius: 10,
-            border: "1px solid #334155",
-            background: "#0b1220",
-            color: "white",
-            fontWeight: 800,
+            padding: "12px 16px",
+            borderRadius: 14,
+            border: "1px solid #1F7A63",
+            background: "#1F7A63",
+            color: "#FFFDF8",
+            fontWeight: 900,
             cursor: "pointer",
             opacity: disabled || busy || !selectedPlayerId ? 0.6 : 1,
           }}
@@ -134,39 +144,47 @@ export default function SundayAdminTableClient({
       <div style={{ marginTop: 16, overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ background: "#f8fafc" }}>
+            <tr style={{ background: "#F8F3EA" }}>
               <th
                 style={{
-                  padding: 10,
+                  padding: 12,
                   textAlign: "left",
-                  borderBottom: "1px solid #e5e7eb",
+                  borderBottom: "1px solid #E6E0D5",
+                  fontSize: 12,
+                  color: "#6A746F",
                 }}
               >
                 Player
               </th>
               <th
                 style={{
-                  padding: 10,
+                  padding: 12,
                   textAlign: "center",
-                  borderBottom: "1px solid #e5e7eb",
+                  borderBottom: "1px solid #E6E0D5",
+                  fontSize: 12,
+                  color: "#6A746F",
                 }}
               >
                 Buy-in
               </th>
               <th
                 style={{
-                  padding: 10,
+                  padding: 12,
                   textAlign: "center",
-                  borderBottom: "1px solid #e5e7eb",
+                  borderBottom: "1px solid #E6E0D5",
+                  fontSize: 12,
+                  color: "#6A746F",
                 }}
               >
                 Cash-out
               </th>
               <th
                 style={{
-                  padding: 10,
+                  padding: 12,
                   textAlign: "center",
-                  borderBottom: "1px solid #e5e7eb",
+                  borderBottom: "1px solid #E6E0D5",
+                  fontSize: 12,
+                  color: "#6A746F",
                 }}
               >
                 Net
@@ -178,9 +196,10 @@ export default function SundayAdminTableClient({
               <tr key={row.playerId}>
                 <td
                   style={{
-                    padding: 10,
-                    borderBottom: "1px solid #e5e7eb",
-                    fontWeight: 700,
+                    padding: 12,
+                    borderBottom: "1px solid #F0EBE2",
+                    fontWeight: 900,
+                    color: "#17342D",
                   }}
                 >
                   {row.fullName}
@@ -188,9 +207,9 @@ export default function SundayAdminTableClient({
 
                 <td
                   style={{
-                    padding: 10,
+                    padding: 12,
                     textAlign: "center",
-                    borderBottom: "1px solid #e5e7eb",
+                    borderBottom: "1px solid #F0EBE2",
                   }}
                 >
                   <input
@@ -200,10 +219,12 @@ export default function SundayAdminTableClient({
                     disabled={disabled || busy}
                     onBlur={(e) => saveAmount(row.playerId, "buyin", e.currentTarget.value)}
                     style={{
-                      width: 110,
-                      padding: "8px 10px",
-                      borderRadius: 10,
-                      border: "1px solid #cbd5e1",
+                      width: 120,
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      border: "1px solid #D9D3C7",
+                      background: "#F8F3EA",
+                      color: "#17342D",
                       textAlign: "center",
                       opacity: disabled || busy ? 0.7 : 1,
                     }}
@@ -212,9 +233,9 @@ export default function SundayAdminTableClient({
 
                 <td
                   style={{
-                    padding: 10,
+                    padding: 12,
                     textAlign: "center",
-                    borderBottom: "1px solid #e5e7eb",
+                    borderBottom: "1px solid #F0EBE2",
                   }}
                 >
                   <input
@@ -224,10 +245,12 @@ export default function SundayAdminTableClient({
                     disabled={disabled || busy}
                     onBlur={(e) => saveAmount(row.playerId, "cashout", e.currentTarget.value)}
                     style={{
-                      width: 110,
-                      padding: "8px 10px",
-                      borderRadius: 10,
-                      border: "1px solid #cbd5e1",
+                      width: 120,
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      border: "1px solid #D9D3C7",
+                      background: "#F8F3EA",
+                      color: "#17342D",
                       textAlign: "center",
                       opacity: disabled || busy ? 0.7 : 1,
                     }}
@@ -236,9 +259,9 @@ export default function SundayAdminTableClient({
 
                 <td
                   style={{
-                    padding: 10,
+                    padding: 12,
                     textAlign: "center",
-                    borderBottom: "1px solid #e5e7eb",
+                    borderBottom: "1px solid #F0EBE2",
                     fontWeight: 900,
                     color:
                       row.cashout - row.buyin > 0
@@ -254,17 +277,17 @@ export default function SundayAdminTableClient({
               </tr>
             ))}
 
-            <tr style={{ background: "#f8fafc" }}>
-              <td style={{ padding: 10, fontWeight: 900 }}>TOTAL</td>
-              <td style={{ padding: 10, textAlign: "center", fontWeight: 900 }}>
+            <tr style={{ background: "#F8F3EA" }}>
+              <td style={{ padding: 12, fontWeight: 900, color: "#17342D" }}>TOTAL</td>
+              <td style={{ padding: 12, textAlign: "center", fontWeight: 900, color: "#17342D" }}>
                 ${totals.totalBuyin.toFixed(2)}
               </td>
-              <td style={{ padding: 10, textAlign: "center", fontWeight: 900 }}>
+              <td style={{ padding: 12, textAlign: "center", fontWeight: 900, color: "#17342D" }}>
                 ${totals.totalCashout.toFixed(2)}
               </td>
               <td
                 style={{
-                  padding: 10,
+                  padding: 12,
                   textAlign: "center",
                   fontWeight: 900,
                   color: totals.totalNet === 0 ? "#15803d" : "#b91c1c",

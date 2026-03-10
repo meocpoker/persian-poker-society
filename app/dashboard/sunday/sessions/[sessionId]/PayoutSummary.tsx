@@ -87,11 +87,12 @@ export default async function PayoutSummary({ sessionId, status }: Props) {
   return (
     <div
       style={{
-        marginTop: 24,
+        marginTop: 18,
         border: "1px solid #E3E0D8",
         borderRadius: 20,
         padding: 20,
         background: "#FFFCF7",
+        boxShadow: "0 10px 30px rgba(31, 42, 55, 0.05)",
       }}
     >
       <div
@@ -103,7 +104,9 @@ export default async function PayoutSummary({ sessionId, status }: Props) {
           flexWrap: "wrap",
         }}
       >
-        <div style={{ fontSize: 18, fontWeight: 900 }}>Settlement Summary</div>
+        <div style={{ fontSize: 18, fontWeight: 900, color: "#17342D" }}>
+          Settlement Summary
+        </div>
 
         <span
           style={{
@@ -124,16 +127,48 @@ export default async function PayoutSummary({ sessionId, status }: Props) {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#F8F3EA" }}>
-              <th style={{ padding: 10, textAlign: "left", borderBottom: "1px solid #E3E0D8" }}>
+              <th
+                style={{
+                  padding: 12,
+                  textAlign: "left",
+                  borderBottom: "1px solid #E6E0D5",
+                  fontSize: 12,
+                  color: "#6A746F",
+                }}
+              >
                 Player
               </th>
-              <th style={{ padding: 10, textAlign: "center", borderBottom: "1px solid #E3E0D8" }}>
+              <th
+                style={{
+                  padding: 12,
+                  textAlign: "center",
+                  borderBottom: "1px solid #E6E0D5",
+                  fontSize: 12,
+                  color: "#6A746F",
+                }}
+              >
                 Buy-in
               </th>
-              <th style={{ padding: 10, textAlign: "center", borderBottom: "1px solid #E3E0D8" }}>
+              <th
+                style={{
+                  padding: 12,
+                  textAlign: "center",
+                  borderBottom: "1px solid #E6E0D5",
+                  fontSize: 12,
+                  color: "#6A746F",
+                }}
+              >
                 Cash-out
               </th>
-              <th style={{ padding: 10, textAlign: "center", borderBottom: "1px solid #E3E0D8" }}>
+              <th
+                style={{
+                  padding: 12,
+                  textAlign: "center",
+                  borderBottom: "1px solid #E6E0D5",
+                  fontSize: 12,
+                  color: "#6A746F",
+                }}
+              >
                 Net
               </th>
             </tr>
@@ -142,22 +177,43 @@ export default async function PayoutSummary({ sessionId, status }: Props) {
           <tbody>
             {rows.map((row) => (
               <tr key={row.id}>
-                <td style={{ padding: 10, borderBottom: "1px solid #EDE7DB", fontWeight: 800 }}>
+                <td
+                  style={{
+                    padding: 12,
+                    borderBottom: "1px solid #F0EBE2",
+                    fontWeight: 900,
+                    color: "#17342D",
+                  }}
+                >
                   {row.name}
                 </td>
-                <td style={{ padding: 10, textAlign: "center", borderBottom: "1px solid #EDE7DB" }}>
+                <td
+                  style={{
+                    padding: 12,
+                    textAlign: "center",
+                    borderBottom: "1px solid #F0EBE2",
+                    color: "#17342D",
+                  }}
+                >
                   ${row.buyin.toFixed(2)}
                 </td>
-                <td style={{ padding: 10, textAlign: "center", borderBottom: "1px solid #EDE7DB" }}>
+                <td
+                  style={{
+                    padding: 12,
+                    textAlign: "center",
+                    borderBottom: "1px solid #F0EBE2",
+                    color: "#17342D",
+                  }}
+                >
                   ${row.cashout.toFixed(2)}
                 </td>
                 <td
                   style={{
-                    padding: 10,
+                    padding: 12,
                     textAlign: "center",
-                    borderBottom: "1px solid #EDE7DB",
+                    borderBottom: "1px solid #F0EBE2",
                     fontWeight: 900,
-                    color: row.net > 0 ? "#15803d" : row.net < 0 ? "#b91c1c" : "#334155",
+                    color: row.net > 0 ? "#15803d" : row.net < 0 ? "#b91c1c" : "#111827",
                   }}
                 >
                   {row.net > 0 ? "+" : ""}${row.net.toFixed(2)}
@@ -166,16 +222,16 @@ export default async function PayoutSummary({ sessionId, status }: Props) {
             ))}
 
             <tr style={{ background: "#F8F3EA" }}>
-              <td style={{ padding: 10, fontWeight: 900 }}>TOTAL</td>
-              <td style={{ padding: 10, textAlign: "center", fontWeight: 900 }}>
+              <td style={{ padding: 12, fontWeight: 900, color: "#17342D" }}>TOTAL</td>
+              <td style={{ padding: 12, textAlign: "center", fontWeight: 900, color: "#17342D" }}>
                 ${totalBuyin.toFixed(2)}
               </td>
-              <td style={{ padding: 10, textAlign: "center", fontWeight: 900 }}>
+              <td style={{ padding: 12, textAlign: "center", fontWeight: 900, color: "#17342D" }}>
                 ${totalCashout.toFixed(2)}
               </td>
               <td
                 style={{
-                  padding: 10,
+                  padding: 12,
                   textAlign: "center",
                   fontWeight: 900,
                   color: totalNet === 0 ? "#15803d" : "#b91c1c",
