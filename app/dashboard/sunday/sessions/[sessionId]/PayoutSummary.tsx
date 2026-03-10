@@ -22,96 +22,87 @@ export default async function PayoutSummary({ sessionId, status }: Props) {
 
   const { data: ledgerRows } = await supabase
     .from("ledger_transactions")
-    .select("user_id, delta_usd")
+    .select("user_id, registry_player_id, delta_usd")
     .eq("session_id", sessionId);
 
   if (!ledgerRows || ledgerRows.length === 0) return null;
 
-  const userIds = Array.from(new Set(ledgerRows.map((r: any) => r.user_id)));
-
-  const nameById = new Map<string, string>();
-  if (userIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, full_name, email")
-      .in("id", userIds);
-
-    (profiles ?? []).forEach((p: any) => {
-      nameById.set(p.id, p.full_name ?? p.email ?? p.id.slice(0, 8));
-    });
-  }
-
   const payouts = ledgerRows
-    .map((r: any) => {
-      const net = Number(r.delta_usd ?? 0);
-      const name = nameById.get(r.user_id) ?? r.user_id.slice(0, 8);
-      return { userId: r.user_id, name, net };
-    })
+    .map((r: any) => ({
+      id: r.registry_player_id ?? r.user_id,
+      net: Number(r.delta_usd ?? 0),
+    }))
     .sort((a: any, b: any) => b.net - a.net);
 
+  const ids = payouts.map((p: any) => p.id).filter(Boolean);
+
+  const { data: players } = await supabase
+    .from("player_registry")
+    .select("id, full_name")
+    .in("id", ids);
+
+  const nameById = new Map<string, string>();
+  (players ?? []).forEach((p: any) => {
+    nameById.set(p.id, p.full_name ?? p.id.slice(0, 8));
+  });
+
   return (
-    <div className="mt-6 rounded-lg border bg-white p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">Payout Summary</h2>
-        <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+    <div
+      style={{
+        marginTop: 24,
+        border: "1px solid #E3E0D8",
+        borderRadius: 20,
+        padding: 20,
+        background: "#FFFCF7",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <h2 style={{ fontSize: 18, fontWeight: 900 }}>Settlement</h2>
+        <span
+          style={{
+            padding: "4px 10px",
+            borderRadius: 999,
+            fontSize: 12,
+            fontWeight: 800,
+            border: "1px solid #1d4ed8",
+            background: "#0a1f44",
+            color: "#bfdbfe",
+          }}
+        >
           Computed
         </span>
       </div>
 
-      {/* Desktop/tablet */}
-      <div className="hidden overflow-hidden rounded-md border sm:block">
-        <div className="grid grid-cols-2 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600">
-          <div>Player</div>
-          <div className="text-right">Net</div>
-        </div>
+      <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
+        {payouts.map((p: any) => {
+          const name = nameById.get(p.id) ?? p.id?.slice(0, 8);
 
-        <div className="divide-y">
-          {payouts.map((p) => (
-            <div key={p.userId} className="grid grid-cols-2 px-3 py-2 text-sm">
-              <div className="truncate">{p.name}</div>
+          return (
+            <div
+              key={p.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "12px 14px",
+                borderRadius: 12,
+                border: "1px solid #E3E0D8",
+                background: "#F8F3EA",
+                fontWeight: 800,
+              }}
+            >
+              <div>{name}</div>
+
               <div
-                className={`text-right font-semibold ${
-                  p.net > 0
-                    ? "text-green-600"
-                    : p.net < 0
-                    ? "text-red-600"
-                    : "text-gray-700"
-                }`}
+                style={{
+                  color:
+                    p.net > 0 ? "#15803d" : p.net < 0 ? "#b91c1c" : "#334155",
+                }}
               >
                 {formatMoney(p.net)}
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Mobile/cards */}
-      <div className="grid gap-2 sm:hidden">
-        {payouts.map((p) => (
-          <div
-            key={p.userId}
-            className="flex items-center justify-between gap-3 rounded-md border px-3 py-3"
-          >
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold">{p.name}</div>
-              <div className="mt-0.5 text-xs text-gray-500">
-                Net result
-              </div>
-            </div>
-
-            <div
-              className={`shrink-0 text-sm font-extrabold ${
-                p.net > 0
-                  ? "text-green-600"
-                  : p.net < 0
-                  ? "text-red-600"
-                  : "text-gray-700"
-              }`}
-            >
-              {formatMoney(p.net)}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
