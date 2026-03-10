@@ -1,5 +1,6 @@
 // app/dashboard/sunday/sessions/[sessionId]/page.tsx
 import React from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ConfirmSubmitButton from "./ConfirmSubmitButton";
@@ -11,14 +12,34 @@ function Badge({
   tone,
 }: {
   label: string;
-  tone: "green" | "yellow" | "blue" | "gray" | "red";
+  tone: "neutral" | "green" | "gold" | "red" | "blue";
 }) {
-  const tones: Record<typeof tone, React.CSSProperties> = {
-    green: { background: "#052e16", borderColor: "#14532d", color: "#bbf7d0" },
-    yellow: { background: "#3a2a03", borderColor: "#854d0e", color: "#fde68a" },
-    blue: { background: "#0a1f44", borderColor: "#1d4ed8", color: "#bfdbfe" },
-    gray: { background: "#0f172a", borderColor: "#334155", color: "#e2e8f0" },
-    red: { background: "#3f0a0a", borderColor: "#991b1b", color: "#fecaca" },
+  const tones: Record<string, React.CSSProperties> = {
+    neutral: {
+      border: "1px solid #D9D3C7",
+      background: "#F8F3EA",
+      color: "#4E5B55",
+    },
+    green: {
+      border: "1px solid #B9D7CF",
+      background: "#EDF7F4",
+      color: "#1F7A63",
+    },
+    gold: {
+      border: "1px solid #E5D2A1",
+      background: "#FBF6EA",
+      color: "#8A6A1F",
+    },
+    red: {
+      border: "1px solid #E9C8CF",
+      background: "#FDF0F2",
+      color: "#8B1E2D",
+    },
+    blue: {
+      border: "1px solid #BFD4F8",
+      background: "#EEF4FF",
+      color: "#1D4ED8",
+    },
   };
 
   return (
@@ -27,16 +48,48 @@ function Badge({
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        padding: "4px 10px",
+        padding: "6px 12px",
         borderRadius: 999,
-        border: "1px solid",
         fontSize: 12,
         fontWeight: 800,
+        letterSpacing: 0.2,
         ...tones[tone],
       }}
     >
       {label}
     </span>
+  );
+}
+
+function SectionCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        border: "1px solid #E3E0D8",
+        borderRadius: 20,
+        padding: 18,
+        background: "#FFFCF7",
+        boxShadow: "0 10px 30px rgba(31, 42, 55, 0.05)",
+      }}
+    >
+      <div style={{ fontSize: 18, fontWeight: 900, color: "#17342D" }}>
+        {title}
+      </div>
+      {subtitle ? (
+        <div style={{ fontSize: 13, color: "#6A746F", marginTop: 6 }}>
+          {subtitle}
+        </div>
+      ) : null}
+      <div style={{ marginTop: 16 }}>{children}</div>
+    </div>
   );
 }
 
@@ -48,18 +101,20 @@ function PrimaryButton({
   variant?: "default" | "danger";
 }) {
   const danger = variant === "danger";
+
   return (
     <button
       type="submit"
       style={{
         width: "100%",
         padding: "12px 14px",
-        borderRadius: 12,
-        border: `1px solid ${danger ? "#991b1b" : "#334155"}`,
-        background: danger ? "#3f0a0a" : "#0b1220",
-        color: "white",
+        borderRadius: 14,
         cursor: "pointer",
         fontWeight: 900,
+        fontSize: 14,
+        border: danger ? "1px solid #8B1E2D" : "1px solid #1F7A63",
+        background: danger ? "#FFF3F4" : "#1F7A63",
+        color: danger ? "#8B1E2D" : "#FFFDF8",
       }}
     >
       {children}
@@ -170,11 +225,9 @@ export default async function SundaySessionPage(props: any) {
     .map((r: any) => r.player_id)
     .filter(Boolean);
 
-  const allNeededIds = Array.from(
-    new Set([...sessionPlayerIds, ...approvedPlayerIds])
-  );
+  const allNeededIds = Array.from(new Set([...sessionPlayerIds, ...approvedPlayerIds]));
 
-  let playersById = new Map<string, { id: string; full_name: string | null }>();
+  const playersById = new Map<string, { id: string; full_name: string | null }>();
 
   if (allNeededIds.length > 0) {
     const { data: playerRows, error: pErr } = await supabase
@@ -238,137 +291,178 @@ export default async function SundaySessionPage(props: any) {
     })
     .sort((a, b) => String(a.fullName).localeCompare(String(b.fullName)));
 
-  let statusTone: "green" | "yellow" | "blue" | "gray" | "red" = "gray";
+  let statusTone: "neutral" | "green" | "gold" | "red" | "blue" = "neutral";
   if (statusLower === "active" || statusLower === "open") statusTone = "green";
-  else if (statusLower === "locked") statusTone = "yellow";
+  else if (statusLower === "locked") statusTone = "gold";
   else if (statusLower === "computed") statusTone = "blue";
-  else if (statusLower === "draft" || statusLower === "scheduled") statusTone = "gray";
-  else if (statusLower === "archived" || statusLower === "closed") statusTone = "gray";
+  else if (statusLower === "closed" || statusLower === "archived") statusTone = "neutral";
   else statusTone = "red";
 
   return (
-    <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <h1 style={{ fontSize: 26, fontWeight: 900, margin: 0 }}>
-            Sunday Session
-          </h1>
-
-          <div style={{ marginTop: 8, display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Badge
-              label={`Status: ${(lifecycle as any)?.status ?? "unknown"}`}
-              tone={statusTone}
-            />
-            {statusLower === "computed" && <Badge label="Settlement Ready" tone="blue" />}
-          </div>
-
-          <div style={{ marginTop: 10 }}>
-            <a
-              href={`/dashboard/admin/audit?session=${sessionId}`}
-              style={{
-                fontSize: 13,
-                fontWeight: 800,
-                textDecoration: "underline",
-                color: "#93c5fd",
-              }}
-            >
-              View in Audit Log
-            </a>
-          </div>
-        </div>
-
-        <div style={{ minWidth: 260, flex: "0 0 320px" }}>
+    <div
+      style={{
+        minHeight: "100%",
+        background: "linear-gradient(180deg, #FAF6EF 0%, #F7F1E7 100%)",
+        padding: 24,
+      }}
+    >
+      <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+        <div
+          style={{
+            background: "#FFFCF7",
+            border: "1px solid #E3E0D8",
+            borderRadius: 24,
+            padding: 24,
+            boxShadow: "0 16px 40px rgba(31, 42, 55, 0.06)",
+          }}
+        >
           <div
             style={{
-              border: "1px solid #1f2937",
-              borderRadius: 14,
-              padding: 14,
-              background: "#0b1220",
-              color: "white",
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: 16,
+              flexWrap: "wrap",
             }}
           >
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Session Actions</div>
-            <div style={{ fontSize: 12, color: "#cbd5e1", marginBottom: 12 }}>
-              Add players and enter totals before lock and compute.
+            <div>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  letterSpacing: 1.1,
+                  textTransform: "uppercase",
+                  color: "#C89B3C",
+                }}
+              >
+                Persian Men Society
+              </div>
+
+              <h1
+                style={{
+                  fontSize: 34,
+                  lineHeight: 1.1,
+                  fontWeight: 900,
+                  margin: "8px 0 0 0",
+                  color: "#17342D",
+                }}
+              >
+                Sunday Session
+              </h1>
+
+              <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <Badge
+                  label={`Status: ${(lifecycle as any)?.status ?? "unknown"}`}
+                  tone={statusTone}
+                />
+                {statusLower === "computed" && (
+                  <Badge label="Settlement Ready" tone="blue" />
+                )}
+              </div>
+
+              <div style={{ marginTop: 14, display: "flex", gap: 16, flexWrap: "wrap" }}>
+                <Link
+                  href="/dashboard/sunday"
+                  style={{ color: "#1F7A63", fontWeight: 800, textDecoration: "none" }}
+                >
+                  ← Back to Sunday
+                </Link>
+
+                <Link
+                  href={`/dashboard/admin/audit?session=${sessionId}`}
+                  style={{ color: "#1F7A63", fontWeight: 800, textDecoration: "none" }}
+                >
+                  View in Audit Log
+                </Link>
+              </div>
             </div>
 
-            <div style={{ display: "grid", gap: 10 }}>
-              {(lifecycle as any)?.can_lock && (
-                <form
-                  action={`/dashboard/sunday/sessions/${sessionId}/lock`}
-                  method="post"
-                >
-                  <PrimaryButton>Lock session</PrimaryButton>
-                </form>
-              )}
+            <div style={{ width: "100%", maxWidth: 340 }}>
+              <SectionCard
+                title="Session Actions"
+                subtitle="Add players and enter totals before lock and compute."
+              >
+                <div style={{ display: "grid", gap: 10 }}>
+                  {(lifecycle as any)?.can_lock && (
+                    <form
+                      action={`/dashboard/sunday/sessions/${sessionId}/lock`}
+                      method="post"
+                    >
+                      <PrimaryButton>Lock Session</PrimaryButton>
+                    </form>
+                  )}
 
-              {(lifecycle as any)?.can_unlock && (
-                <form
-                  action={`/dashboard/sunday/sessions/${sessionId}/unlock`}
-                  method="post"
-                >
-                  <PrimaryButton variant="danger">Unlock session</PrimaryButton>
-                </form>
-              )}
+                  {(lifecycle as any)?.can_unlock && (
+                    <form
+                      action={`/dashboard/sunday/sessions/${sessionId}/unlock`}
+                      method="post"
+                    >
+                      <PrimaryButton variant="danger">Unlock Session</PrimaryButton>
+                    </form>
+                  )}
 
-              {(lifecycle as any)?.can_compute && (
-                <form
-                  action={`/dashboard/sunday/sessions/${sessionId}/compute`}
-                  method="post"
-                >
-                  <ConfirmSubmitButton
-                    style={{
-                      width: "100%",
-                      padding: "12px 14px",
-                      borderRadius: 12,
-                      border: "1px solid #1d4ed8",
-                      background: "#0a1f44",
-                      color: "white",
-                      cursor: "pointer",
-                      fontWeight: 900,
-                    }}
-                    confirmText={
-                      `Compute settlement for this Sunday session?\n\n` +
-                      `Session: ${sessionId}\n\n` +
-                      `This will post results to the ledger. Continue?`
-                    }
-                  >
-                    Compute settlement
-                  </ConfirmSubmitButton>
-                </form>
-              )}
+                  {(lifecycle as any)?.can_compute && (
+                    <form
+                      action={`/dashboard/sunday/sessions/${sessionId}/compute`}
+                      method="post"
+                    >
+                      <ConfirmSubmitButton
+                        style={{
+                          width: "100%",
+                          padding: "12px 14px",
+                          borderRadius: 14,
+                          border: "1px solid #1F7A63",
+                          background: "#1F7A63",
+                          color: "#FFFDF8",
+                          cursor: "pointer",
+                          fontWeight: 900,
+                          fontSize: 14,
+                        }}
+                        confirmText={
+                          `Compute settlement for this Sunday session?\n\n` +
+                          `Session: ${sessionId}\n\n` +
+                          `This will post results to the ledger. Continue?`
+                        }
+                      >
+                        Compute Settlement
+                      </ConfirmSubmitButton>
+                    </form>
+                  )}
 
-              {!Boolean((lifecycle as any)?.can_lock) &&
-                !Boolean((lifecycle as any)?.can_unlock) &&
-                !Boolean((lifecycle as any)?.can_compute) && (
-                  <div style={{ fontSize: 13, color: "#cbd5e1" }}>
-                    No actions available.
-                  </div>
-                )}
+                  {!Boolean((lifecycle as any)?.can_lock) &&
+                    !Boolean((lifecycle as any)?.can_unlock) &&
+                    !Boolean((lifecycle as any)?.can_compute) && (
+                      <div
+                        style={{
+                          fontSize: 13,
+                          color: "#5F6B66",
+                          background: "#F8F3EA",
+                          border: "1px solid #E3E0D8",
+                          borderRadius: 12,
+                          padding: 12,
+                        }}
+                      >
+                        No actions available.
+                      </div>
+                    )}
+                </div>
+              </SectionCard>
             </div>
           </div>
         </div>
+
+        <SundayAdminTableClient
+          sessionId={sessionId}
+          addablePlayers={addablePlayers}
+          initialRows={tableRows}
+          disabled={isLockedOrComputed}
+        />
+
+        <PayoutSummary
+          sessionId={sessionId}
+          status={String((lifecycle as any)?.status ?? "").toLowerCase()}
+        />
       </div>
-
-      <SundayAdminTableClient
-        sessionId={sessionId}
-        addablePlayers={addablePlayers}
-        initialRows={tableRows}
-        disabled={isLockedOrComputed}
-      />
-
-      <PayoutSummary
-        sessionId={sessionId}
-        status={String((lifecycle as any)?.status ?? "").toLowerCase()}
-      />
     </div>
   );
 }
