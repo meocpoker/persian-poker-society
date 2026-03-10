@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ConfirmSubmitButton from "./ConfirmSubmitButton";
 import PayoutSummary from "./PayoutSummary";
+import SundayAdminTableClient from "./SundayAdminTableClient";
 
 function Badge({
   label,
@@ -63,124 +64,6 @@ function PrimaryButton({
     >
       {children}
     </button>
-  );
-}
-
-function MoneyInput({
-  sessionId,
-  playerId,
-  type,
-  defaultValue,
-  disabled,
-}: {
-  sessionId: string;
-  playerId: string;
-  type: "buyin" | "cashout";
-  defaultValue: number;
-  disabled: boolean;
-}) {
-  return (
-    <form
-      action={`/api/sunday/sessions/${sessionId}/${type === "buyin" ? "set-buyin" : "set-cashout"}`}
-      method="post"
-    >
-      <input type="hidden" name="not-used" value="1" />
-      <input
-        name="amount"
-        type="number"
-        step="0.01"
-        defaultValue={defaultValue}
-        disabled={disabled}
-        onBlur={async (e) => {
-          const amount = Number(e.currentTarget.value || 0);
-          await fetch(
-            `/api/sunday/sessions/${sessionId}/${type === "buyin" ? "set-buyin" : "set-cashout"}`,
-            {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({
-                player_id: playerId,
-                amount,
-              }),
-            }
-          );
-          window.location.reload();
-        }}
-        style={{
-          width: 110,
-          padding: "8px 10px",
-          borderRadius: 10,
-          border: "1px solid #cbd5e1",
-          textAlign: "center",
-        }}
-      />
-    </form>
-  );
-}
-
-function AddPlayerBox({
-  sessionId,
-  options,
-  disabled,
-}: {
-  sessionId: string;
-  options: { id: string; full_name: string | null }[];
-  disabled: boolean;
-}) {
-  return (
-    <form
-      style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}
-      onSubmit={async (e) => {
-        e.preventDefault();
-        const form = e.currentTarget;
-        const fd = new FormData(form);
-        const playerId = String(fd.get("player_id") || "");
-        if (!playerId) return;
-
-        await fetch(`/api/sunday/sessions/${sessionId}/add-player`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ player_id: playerId }),
-        });
-
-        window.location.reload();
-      }}
-    >
-      <select
-        name="player_id"
-        disabled={disabled}
-        style={{
-          minWidth: 240,
-          padding: "10px 12px",
-          borderRadius: 10,
-          border: "1px solid #cbd5e1",
-        }}
-        defaultValue=""
-      >
-        <option value="">Add approved Sunday player...</option>
-        {options.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.full_name ?? p.id}
-          </option>
-        ))}
-      </select>
-
-      <button
-        type="submit"
-        disabled={disabled}
-        style={{
-          padding: "10px 14px",
-          borderRadius: 10,
-          border: "1px solid #334155",
-          background: "#0b1220",
-          color: "white",
-          fontWeight: 800,
-          cursor: "pointer",
-        }}
-      >
-        Add Player
-      </button>
-    </form>
   );
 }
 
@@ -275,7 +158,11 @@ export default async function SundaySessionPage(props: any) {
     .filter((p: any) => !sessionPlayerIds.has(p.id))
     .sort((a: any, b: any) =>
       String(a.full_name ?? "").localeCompare(String(b.full_name ?? ""))
-    );
+    )
+    .map((p: any) => ({
+      id: p.id as string,
+      full_name: p.full_name as string | null,
+    }));
 
   const tableRows = (sessionPlayers ?? [])
     .slice()
@@ -287,17 +174,12 @@ export default async function SundaySessionPage(props: any) {
     .map((sp: any) => {
       const amounts = entryMap.get(sp.player_id) ?? { buyin: 0, cashout: 0 };
       return {
-        playerId: sp.player_id,
-        fullName: sp.player_registry?.full_name ?? sp.player_id,
+        playerId: sp.player_id as string,
+        fullName: (sp.player_registry?.full_name ?? sp.player_id) as string,
         buyin: amounts.buyin,
         cashout: amounts.cashout,
-        net: amounts.cashout - amounts.buyin,
       };
     });
-
-  const totalBuyin = tableRows.reduce((s, r) => s + r.buyin, 0);
-  const totalCashout = tableRows.reduce((s, r) => s + r.cashout, 0);
-  const totalNet = tableRows.reduce((s, r) => s + r.net, 0);
 
   let statusTone: "green" | "yellow" | "blue" | "gray" | "red" = "gray";
   if (statusLower === "active" || statusLower === "open") statusTone = "green";
@@ -419,104 +301,12 @@ export default async function SundaySessionPage(props: any) {
         </div>
       </div>
 
-      <div
-        style={{
-          marginTop: 24,
-          border: "1px solid #e5e7eb",
-          borderRadius: 14,
-          padding: 16,
-          background: "white",
-        }}
-      >
-        <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 12 }}>
-          Sunday Player Entry
-        </div>
-
-        <AddPlayerBox
-          sessionId={sessionId}
-          options={addablePlayers}
-          disabled={isLockedOrComputed}
-        />
-
-        <div style={{ marginTop: 16, overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#f8fafc" }}>
-                <th style={{ padding: 10, textAlign: "left", borderBottom: "1px solid #e5e7eb" }}>
-                  Player
-                </th>
-                <th style={{ padding: 10, textAlign: "center", borderBottom: "1px solid #e5e7eb" }}>
-                  Buy-in
-                </th>
-                <th style={{ padding: 10, textAlign: "center", borderBottom: "1px solid #e5e7eb" }}>
-                  Cash-out
-                </th>
-                <th style={{ padding: 10, textAlign: "center", borderBottom: "1px solid #e5e7eb" }}>
-                  Net
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {tableRows.map((row) => (
-                <tr key={row.playerId}>
-                  <td style={{ padding: 10, borderBottom: "1px solid #e5e7eb", fontWeight: 700 }}>
-                    {row.fullName}
-                  </td>
-                  <td style={{ padding: 10, textAlign: "center", borderBottom: "1px solid #e5e7eb" }}>
-                    <MoneyInput
-                      sessionId={sessionId}
-                      playerId={row.playerId}
-                      type="buyin"
-                      defaultValue={row.buyin}
-                      disabled={isLockedOrComputed}
-                    />
-                  </td>
-                  <td style={{ padding: 10, textAlign: "center", borderBottom: "1px solid #e5e7eb" }}>
-                    <MoneyInput
-                      sessionId={sessionId}
-                      playerId={row.playerId}
-                      type="cashout"
-                      defaultValue={row.cashout}
-                      disabled={isLockedOrComputed}
-                    />
-                  </td>
-                  <td
-                    style={{
-                      padding: 10,
-                      textAlign: "center",
-                      borderBottom: "1px solid #e5e7eb",
-                      fontWeight: 900,
-                      color: row.net > 0 ? "#15803d" : row.net < 0 ? "#b91c1c" : "#111827",
-                    }}
-                  >
-                    {row.net > 0 ? "+" : ""}${row.net.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-
-              <tr style={{ background: "#f8fafc" }}>
-                <td style={{ padding: 10, fontWeight: 900 }}>TOTAL</td>
-                <td style={{ padding: 10, textAlign: "center", fontWeight: 900 }}>
-                  ${totalBuyin.toFixed(2)}
-                </td>
-                <td style={{ padding: 10, textAlign: "center", fontWeight: 900 }}>
-                  ${totalCashout.toFixed(2)}
-                </td>
-                <td
-                  style={{
-                    padding: 10,
-                    textAlign: "center",
-                    fontWeight: 900,
-                    color: totalNet === 0 ? "#15803d" : "#b91c1c",
-                  }}
-                >
-                  {totalNet > 0 ? "+" : ""}${totalNet.toFixed(2)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <SundayAdminTableClient
+        sessionId={sessionId}
+        addablePlayers={addablePlayers}
+        initialRows={tableRows}
+        disabled={isLockedOrComputed}
+      />
 
       <PayoutSummary
         sessionId={sessionId}
