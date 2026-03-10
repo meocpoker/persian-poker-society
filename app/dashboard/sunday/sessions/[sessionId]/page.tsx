@@ -120,25 +120,86 @@ export default async function SundaySessionPage(props: any) {
     statusLower === "computed" ||
     Boolean((lifecycle as any)?.already_computed);
 
-  const { data: sessionPlayers } = await supabase
+  const { data: sessionPlayersRaw, error: spErr } = await supabase
     .from("session_registry_players")
-    .select("player_id, player_registry:player_registry(id, full_name)")
+    .select("player_id")
     .eq("session_id", sessionId);
 
-  const { data: sundayApproved } = await supabase
+  if (spErr) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h1>Sunday Session</h1>
+        <div style={{ color: "red" }}>{spErr.message}</div>
+      </div>
+    );
+  }
+
+  const { data: sundayApprovedRaw, error: sagErr } = await supabase
     .from("player_registry_groups")
-    .select("player_id, player_registry:player_registry(id, full_name)")
+    .select("player_id")
     .eq("group_key", "sunday");
 
-  const { data: entries } = await supabase
+  if (sagErr) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h1>Sunday Session</h1>
+        <div style={{ color: "red" }}>{sagErr.message}</div>
+      </div>
+    );
+  }
+
+  const { data: entries, error: eErr } = await supabase
     .from("player_entries")
     .select("registry_player_id, type, amount_usd")
     .eq("session_id", sessionId);
 
+  if (eErr) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h1>Sunday Session</h1>
+        <div style={{ color: "red" }}>{eErr.message}</div>
+      </div>
+    );
+  }
+
+  const sessionPlayerIds = (sessionPlayersRaw ?? [])
+    .map((r: any) => r.player_id)
+    .filter(Boolean);
+
+  const approvedPlayerIds = (sundayApprovedRaw ?? [])
+    .map((r: any) => r.player_id)
+    .filter(Boolean);
+
+  const allNeededIds = Array.from(
+    new Set([...sessionPlayerIds, ...approvedPlayerIds])
+  );
+
+  let playersById = new Map<string, { id: string; full_name: string | null }>();
+
+  if (allNeededIds.length > 0) {
+    const { data: playerRows, error: pErr } = await supabase
+      .from("player_registry")
+      .select("id, full_name")
+      .in("id", allNeededIds);
+
+    if (pErr) {
+      return (
+        <div style={{ padding: 24 }}>
+          <h1>Sunday Session</h1>
+          <div style={{ color: "red" }}>{pErr.message}</div>
+        </div>
+      );
+    }
+
+    (playerRows ?? []).forEach((p: any) => {
+      playersById.set(p.id, { id: p.id, full_name: p.full_name ?? null });
+    });
+  }
+
   const entryMap = new Map<string, { buyin: number; cashout: number }>();
 
-  (sessionPlayers ?? []).forEach((sp: any) => {
-    entryMap.set(sp.player_id, { buyin: 0, cashout: 0 });
+  sessionPlayerIds.forEach((pid: string) => {
+    entryMap.set(pid, { buyin: 0, cashout: 0 });
   });
 
   (entries ?? []).forEach((e: any) => {
@@ -150,12 +211,12 @@ export default async function SundaySessionPage(props: any) {
     entryMap.set(pid, row);
   });
 
-  const sessionPlayerIds = new Set((sessionPlayers ?? []).map((p: any) => p.player_id));
+  const sessionPlayerIdSet = new Set(sessionPlayerIds);
 
-  const addablePlayers = (sundayApproved ?? [])
-    .map((r: any) => r.player_registry)
+  const addablePlayers = approvedPlayerIds
+    .filter((id: string) => !sessionPlayerIdSet.has(id))
+    .map((id: string) => playersById.get(id))
     .filter(Boolean)
-    .filter((p: any) => !sessionPlayerIds.has(p.id))
     .sort((a: any, b: any) =>
       String(a.full_name ?? "").localeCompare(String(b.full_name ?? ""))
     )
@@ -164,22 +225,18 @@ export default async function SundaySessionPage(props: any) {
       full_name: p.full_name as string | null,
     }));
 
-  const tableRows = (sessionPlayers ?? [])
-    .slice()
-    .sort((a: any, b: any) =>
-      String(a.player_registry?.full_name ?? "").localeCompare(
-        String(b.player_registry?.full_name ?? "")
-      )
-    )
-    .map((sp: any) => {
-      const amounts = entryMap.get(sp.player_id) ?? { buyin: 0, cashout: 0 };
+  const tableRows = sessionPlayerIds
+    .map((id: string) => {
+      const player = playersById.get(id);
+      const amounts = entryMap.get(id) ?? { buyin: 0, cashout: 0 };
       return {
-        playerId: sp.player_id as string,
-        fullName: (sp.player_registry?.full_name ?? sp.player_id) as string,
+        playerId: id,
+        fullName: player?.full_name ?? id,
         buyin: amounts.buyin,
         cashout: amounts.cashout,
       };
-    });
+    })
+    .sort((a, b) => String(a.fullName).localeCompare(String(b.fullName)));
 
   let statusTone: "green" | "yellow" | "blue" | "gray" | "red" = "gray";
   if (statusLower === "active" || statusLower === "open") statusTone = "green";
