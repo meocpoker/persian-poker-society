@@ -1,9 +1,10 @@
-// app/dashboard/admin/audit/page.tsx
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import SessionFilterClient from "./SessionFilterClient";
 import { sessionDisplayName } from "@/lib/sessions/sessionDisplayName";
+import PageShell from "@/app/components/ui/PageShell";
+import SectionCard from "@/app/components/ui/SectionCard";
 
 export default async function AuditPage({
   searchParams,
@@ -80,48 +81,42 @@ export default async function AuditPage({
 
   if (error) {
     return (
-      <div style={{ padding: 24 }}>
-        <h1>Admin Audit Log</h1>
-        <div style={{ color: "red" }}>{error.message}</div>
-      </div>
+      <PageShell
+        eyebrow="Persian Men Society"
+        title="Admin Audit Log"
+        description="Administrative actions recorded by the system."
+      >
+        <SectionCard title="Error">
+          <div style={{ color: "red" }}>{error.message}</div>
+        </SectionCard>
+      </PageShell>
     );
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0 }}>
-            Admin Audit Log
-          </h1>
-
-          {sessionFilter && sessionRow && (
-            <div style={{ marginTop: 8, fontSize: 13, fontWeight: 800 }}>
-              Session: {sessionDisplayName(sessionRow)}
-            </div>
-          )}
+    <PageShell
+      eyebrow="Persian Men Society"
+      title="Admin Audit Log"
+      description="Administrative actions recorded by the system."
+      actions={
+        <Link href="/dashboard" style={{ fontWeight: 800, color: "#1F7A63" }}>
+          Back to Dashboard
+        </Link>
+      }
+    >
+      {sessionFilter && sessionRow && (
+        <div style={{ marginBottom: 16, fontSize: 13, fontWeight: 800 }}>
+          Session: {sessionDisplayName(sessionRow)}
         </div>
+      )}
 
-        <div style={{ fontSize: 13 }}>
-          <Link href="/dashboard" className="underline">
-            Back to Dashboard
-          </Link>
-        </div>
-      </div>
-
-      <div style={{ marginTop: 14 }}>
+      <SectionCard title="Filters">
         <SessionFilterClient />
-      </div>
+      </SectionCard>
 
-      <div style={{ marginTop: 18 }}>
+      <div style={{ height: 16 }} />
+
+      <SectionCard title="Audit Activity">
         {!logs?.length ? (
           <div style={{ color: "#64748b" }}>No records found.</div>
         ) : (
@@ -130,7 +125,10 @@ export default async function AuditPage({
               const highlight = Boolean(sessionFilter) && idx === 0;
 
               const dt = new Date(log.created_at);
-              const when = dt.toISOString().replace("T", " ").replace("Z", " UTC");
+              const when = dt
+                .toISOString()
+                .replace("T", " ")
+                .replace("Z", " UTC");
 
               const sessionHref =
                 log.session_id && log.group_key === "sunday"
@@ -145,10 +143,10 @@ export default async function AuditPage({
                   style={{
                     border: highlight
                       ? "2px solid rgba(29,78,216,0.45)"
-                      : "1px solid rgba(15,23,42,0.12)",
+                      : "1px solid #E3E0D8",
                     borderRadius: 12,
                     padding: 12,
-                    background: highlight ? "rgba(29,78,216,0.05)" : "white",
+                    background: highlight ? "rgba(29,78,216,0.05)" : "#FFFCF7",
                   }}
                 >
                   <div
@@ -159,11 +157,13 @@ export default async function AuditPage({
                       flexWrap: "wrap",
                     }}
                   >
-                    <div style={{ fontWeight: 900 }}>
+                    <div style={{ fontWeight: 900, color: "#17342D" }}>
                       {log.group_key} · {log.action}
                     </div>
 
-                    <div style={{ fontSize: 12, color: "#64748b" }}>{when}</div>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>
+                      {when}
+                    </div>
                   </div>
 
                   <div style={{ marginTop: 6, fontSize: 13 }}>
@@ -192,14 +192,16 @@ export default async function AuditPage({
                   </div>
 
                   {log.message && (
-                    <div style={{ marginTop: 8, fontSize: 13 }}>{log.message}</div>
+                    <div style={{ marginTop: 8, fontSize: 13 }}>
+                      {log.message}
+                    </div>
                   )}
                 </div>
               );
             })}
           </div>
         )}
-      </div>
-    </div>
+      </SectionCard>
+    </PageShell>
   );
 }
