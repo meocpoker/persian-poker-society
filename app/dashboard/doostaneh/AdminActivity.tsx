@@ -1,90 +1,95 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client'; // adjust if your path differs
+import { useState } from "react";
+import Link from "next/link";
 
-type AdminLogRow = {
-  id: number;
-  created_at: string;
-  actor_user_id: string;
-  group_key: string;
-  session_id: string | null;
-  action: string;
-  status: string;
-  message: string | null;
-  meta: any;
-};
+export default function AdminActivity({
+  actions,
+  groupKey,
+}: {
+  actions?: any[];
+  groupKey: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
 
-export default function AdminActivity({ groupKey }: { groupKey: string }) {
-  const supabase = createClient();
-  const [rows, setRows] = useState<AdminLogRow[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  async function load() {
-    setLoading(true);
-
-    const { data, error } = await supabase.rpc(
-      'admin_group_action_feed',
-      {
-        p_group_key: groupKey,
-        p_limit: 50,
-        p_before: null,
-      }
-    );
-
-    if (!error && data) {
-      setRows(data as AdminLogRow[]);
-    }
-
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
+  const visible = expanded ? actions ?? [] : (actions ?? []).slice(0, 5);
 
   return (
-    <div className="mt-8 rounded-xl border p-4">
-      <h2 className="text-lg font-semibold mb-3">
-        Admin Activity
-      </h2>
-
-      {loading && <p className="text-sm text-gray-500">Loading...</p>}
-
-      {!loading && rows.length === 0 && (
-        <p className="text-sm text-gray-500">
-          No admin activity yet.
-        </p>
+    <div>
+      {(!actions || actions.length === 0) && (
+        <div style={{ color: "#475569" }}>No activity yet.</div>
       )}
 
-      <ul className="space-y-2">
-        {rows.map((r) => (
-          <li key={r.id} className="rounded bg-gray-50 p-3">
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>
-                {new Date(r.created_at).toLocaleString()}
-              </span>
-              <span
-                className={`px-2 py-0.5 rounded ${
-                  r.status === 'ok'
-                    ? 'bg-green-100'
-                    : 'bg-red-100'
-                }`}
-              >
-                {r.status}
-              </span>
-            </div>
+      {visible.map((a: any, i: number) => (
+        <div
+          key={i}
+          style={{
+            padding: "8px 0",
+            borderBottom: "1px solid #eee",
+            fontSize: 14,
+            color: "#000000",
+          }}
+        >
+          <div style={{ fontWeight: 700 }}>
+            {a.action}
+          </div>
 
-            <div className="mt-1 text-sm font-medium">
-              {r.action}
-            </div>
+          <div style={{ fontSize: 12, color: "#475569" }}>
+            {new Date(a.created_at).toLocaleString()}
+          </div>
 
-            {r.message && (
-              <div className="text-sm">{r.message}</div>
-            )}
-          </li>
-        ))}
-      </ul>
+          {a.message && (
+            <div style={{ fontSize: 13, marginTop: 2 }}>
+              {a.message}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {(actions?.length ?? 0) > 5 && (
+        <div style={{ marginTop: 12 }}>
+          {!expanded ? (
+            <button
+              onClick={() => setExpanded(true)}
+              style={{
+                fontWeight: 700,
+                color: "#1F7A63",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Show more activity →
+            </button>
+          ) : (
+            <button
+              onClick={() => setExpanded(false)}
+              style={{
+                fontWeight: 700,
+                color: "#1F7A63",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Collapse ↑
+            </button>
+          )}
+        </div>
+      )}
+
+      <div style={{ marginTop: 14 }}>
+        <Link
+          href={`/dashboard/admin/audit?group=${groupKey}`}
+          style={{
+            fontWeight: 800,
+            color: "#1F7A63",
+            textDecoration: "none",
+          }}
+        >
+          View full audit log →
+        </Link>
+      </div>
     </div>
   );
 }
