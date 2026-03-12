@@ -2,112 +2,121 @@
 
 import { useMemo, useState } from "react";
 
-type Event = {
+type EventItem = {
   id: string;
   title: string;
   event_date: string;
 };
 
-export default function MonthCalendarClient({ events }: { events: Event[] }) {
+function monthLabel(date: Date) {
+  return date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
+function sameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+export default function MonthCalendarClient({
+  events,
+}: {
+  events: EventItem[];
+}) {
+  const [cursor, setCursor] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+
+  const grid = useMemo(() => {
+    const start = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+    const end = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+
+    const startDay = start.getDay();
+    const daysInMonth = end.getDate();
+
+    const cells: Array<Date | null> = [];
+
+    for (let i = 0; i < startDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push(new Date(cursor.getFullYear(), cursor.getMonth(), d));
+    }
+    while (cells.length % 7 !== 0) cells.push(null);
+
+    return cells;
+  }, [cursor]);
+
   const today = new Date();
 
-  const [cursor, setCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
-  const year = cursor.getFullYear();
-  const month = cursor.getMonth();
-
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-
-  const daysInMonth = lastDay.getDate();
-  const startWeekday = firstDay.getDay();
-
-  const eventsByDay = useMemo(() => {
-    const map: Record<number, Event[]> = {};
-
-    for (const e of events) {
-      const d = new Date(e.event_date);
-
-      // Group by UTC day/month/year so +00:00 timestamps don't shift into a different local day
-      if (d.getUTCMonth() === month && d.getUTCFullYear() === year) {
-        const day = d.getUTCDate();
-        if (!map[day]) map[day] = [];
-        map[day].push(e);
-      }
-    }
-
-    return map;
-  }, [events, month, year]);
-
-  const cells: (number | null)[] = [];
-  for (let i = 0; i < startWeekday; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-
   return (
-    <div style={{ marginTop: 16 }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <div style={{ fontSize: 20, fontWeight: 900 }}>
-          {cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+    <div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 14,
+          gap: 10,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() =>
+            setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))
+          }
+          style={{
+            padding: "8px 12px",
+            borderRadius: 12,
+            border: "1px solid #D9D3C7",
+            background: "#F8F3EA",
+            color: "#17342D",
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          ← Prev
+        </button>
+
+        <div style={{ fontWeight: 900, color: "#17342D", fontSize: 18 }}>
+          {monthLabel(cursor)}
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            type="button"
-            onClick={() => setCursor(new Date(year, month - 1, 1))}
-            style={{
-              padding: "6px 10px",
-              borderRadius: 10,
-              border: "1px solid rgba(15,23,42,0.15)",
-              background: "white",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            ‹
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setCursor(new Date(today.getFullYear(), today.getMonth(), 1))}
-            style={{
-              padding: "6px 10px",
-              borderRadius: 10,
-              border: "1px solid rgba(15,23,42,0.15)",
-              background: "white",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            Today
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setCursor(new Date(year, month + 1, 1))}
-            style={{
-              padding: "6px 10px",
-              borderRadius: 10,
-              border: "1px solid rgba(15,23,42,0.15)",
-              background: "white",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            ›
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() =>
+            setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))
+          }
+          style={{
+            padding: "8px 12px",
+            borderRadius: 12,
+            border: "1px solid #D9D3C7",
+            background: "#F8F3EA",
+            color: "#17342D",
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          Next →
+        </button>
       </div>
 
-      {/* Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
-        {/* Weekday headers */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+          gap: 8,
+        }}
+      >
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
           <div
             key={d}
             style={{
-              fontWeight: 800,
-              fontSize: 12,
               textAlign: "center",
+              fontSize: 12,
+              fontWeight: 800,
+              color: "#6A746F",
               paddingBottom: 4,
             }}
           >
@@ -115,53 +124,79 @@ export default function MonthCalendarClient({ events }: { events: Event[] }) {
           </div>
         ))}
 
-        {/* Day cells */}
-        {cells.map((day, idx) => (
-          <div
-            key={idx}
-            style={{
-              minHeight: 90,
-              border: "1px solid rgba(15,23,42,0.1)",
-              borderRadius: 8,
-              padding: 6,
-              background:
-                day !== null &&
-                day === today.getDate() &&
-                month === today.getMonth() &&
-                year === today.getFullYear()
-                  ? "rgba(16,185,129,0.08)"
-                  : "white",
-            }}
-          >
-            {day !== null && (
-              <>
-                <div style={{ fontSize: 12, fontWeight: 800 }}>{day}</div>
+        {grid.map((date, idx) => {
+          const dayEvents = date
+            ? events.filter((e) => sameDay(new Date(e.event_date), date))
+            : [];
 
-               {eventsByDay[day]?.map((e) => (
-  <div
-    key={e.id}
-    onClick={() => {
-  // Ask the toggle to open, and pass the eventId so it can scroll after opening
-  window.dispatchEvent(
-    new CustomEvent("pms:open-event-list", { detail: { eventId: e.id } })
-  );
-}}
-    style={{
-      marginTop: 4,
-      fontSize: 11,
-      padding: "2px 4px",
-      borderRadius: 6,
-      background: "rgba(59,130,246,0.12)",
-      cursor: "pointer",
-    }}
-  >
-    {e.title}
-  </div>
-))}
-              </>
-            )}
-          </div>
-        ))}
+          const isToday = date ? sameDay(date, today) : false;
+          const inMonth = !!date;
+
+          return (
+            <div
+              key={idx}
+              style={{
+                minHeight: 88,
+                border: "1px solid #E3E0D8",
+                borderRadius: 14,
+                background: inMonth ? "#FFFCF7" : "#F8F3EA",
+                padding: 8,
+                opacity: inMonth ? 1 : 0.45,
+              }}
+            >
+              {date && (
+                <>
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 999,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 12,
+                      fontWeight: 900,
+                      color: isToday ? "#FFFDF8" : "#17342D",
+                      background: isToday ? "#1F7A63" : "transparent",
+                      marginBottom: 6,
+                    }}
+                  >
+                    {date.getDate()}
+                  </div>
+
+                  <div style={{ display: "grid", gap: 4 }}>
+                    {dayEvents.slice(0, 2).map((e) => (
+                      <div
+                        key={e.id}
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 800,
+                          color: "#1F7A63",
+                          background: "#EDF7F4",
+                          border: "1px solid #B9D7CF",
+                          borderRadius: 10,
+                          padding: "4px 6px",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={e.title}
+                      >
+                        {e.title}
+                      </div>
+                    ))}
+
+                    {dayEvents.length > 2 && (
+                      <div style={{ fontSize: 11, color: "#6A746F", fontWeight: 700 }}>
+                        +{dayEvents.length - 2} more
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
