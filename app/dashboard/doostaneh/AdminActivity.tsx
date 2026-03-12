@@ -1,89 +1,113 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function AdminActivity({
-  actions,
   groupKey,
 }: {
-  actions?: any[];
   groupKey: string;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const visible = expanded ? actions ?? [] : (actions ?? []).slice(0, 5);
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      try {
+        const res = await fetch(
+          `/api/admin/audit/export?group=${groupKey}&limit=5`,
+          { cache: "no-store" }
+        );
+
+        if (!res.ok) {
+          if (active) {
+            setRows([]);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const data = await res.json();
+
+        if (active) {
+          setRows(Array.isArray(data) ? data : data?.rows ?? []);
+          setLoading(false);
+        }
+      } catch {
+        if (active) {
+          setRows([]);
+          setLoading(false);
+        }
+      }
+    }
+
+    load();
+    return () => {
+      active = false;
+    };
+  }, [groupKey]);
+
+  if (loading) {
+    return <div style={{ color: "#5F6B66", fontSize: 14 }}>Loading...</div>;
+  }
+
+  if (!rows.length) {
+    return <div style={{ color: "#5F6B66", fontSize: 14 }}>No recent activity.</div>;
+  }
 
   return (
-    <div>
-      {(!actions || actions.length === 0) && (
-        <div style={{ color: "#475569" }}>No activity yet.</div>
-      )}
-
-      {visible.map((a: any, i: number) => (
+    <div style={{ display: "grid", gap: 10 }}>
+      {rows.slice(0, 5).map((row: any, idx: number) => (
         <div
-          key={i}
+          key={row.id ?? idx}
           style={{
-            padding: "8px 0",
-            borderBottom: "1px solid #eee",
-            fontSize: 14,
-            color: "#000000",
+            border: "1px solid #E3E0D8",
+            borderRadius: 12,
+            padding: 12,
+            background: "#FFFCF7",
           }}
         >
-          <div style={{ fontWeight: 700 }}>
-            {a.action}
-          </div>
-
-          <div style={{ fontSize: 12, color: "#475569" }}>
-            {new Date(a.created_at).toLocaleString()}
-          </div>
-
-          {a.message && (
-            <div style={{ fontSize: 13, marginTop: 2 }}>
-              {a.message}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ fontWeight: 900, color: "#17342D" }}>
+              {row.group_key} · {row.action}
             </div>
-          )}
+
+            <div style={{ fontSize: 12, color: "#64748b" }}>
+              {row.created_at
+                ? new Date(row.created_at).toLocaleString()
+                : ""}
+            </div>
+          </div>
+
+          {row.status ? (
+            <div style={{ marginTop: 6, fontSize: 13, color: "#17342D" }}>
+              <span style={{ color: "#64748b" }}>Status:</span> {row.status}
+            </div>
+          ) : null}
+
+          {row.message ? (
+            <div style={{ marginTop: 6, fontSize: 13, color: "#17342D" }}>
+              {row.message}
+            </div>
+          ) : null}
         </div>
       ))}
 
-      {(actions?.length ?? 0) > 5 && (
-        <div style={{ marginTop: 12 }}>
-          {!expanded ? (
-            <button
-              onClick={() => setExpanded(true)}
-              style={{
-                fontWeight: 700,
-                color: "#1F7A63",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Show more activity →
-            </button>
-          ) : (
-            <button
-              onClick={() => setExpanded(false)}
-              style={{
-                fontWeight: 700,
-                color: "#1F7A63",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Collapse ↑
-            </button>
-          )}
-        </div>
-      )}
-
-      <div style={{ marginTop: 14 }}>
+      <div style={{ marginTop: 4 }}>
         <Link
           href={`/dashboard/admin/audit?group=${groupKey}`}
           style={{
-            fontWeight: 800,
             color: "#1F7A63",
+            fontWeight: 800,
             textDecoration: "none",
           }}
         >
