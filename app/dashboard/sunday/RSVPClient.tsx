@@ -1,9 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
-
-type RSVPStatus = "going" | "not_going";
 
 export default function RSVPClient({
   eventId,
@@ -17,130 +15,93 @@ export default function RSVPClient({
   eventDate: string;
 }) {
   const supabase = createClient();
-
   const [status, setStatus] = useState<string | null>(initialStatus);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
-  const isLocked = useMemo(() => {
-    // Manual lock: scheduled
-    if (eventStatus === "scheduled") return true;
+  const isPublished = eventStatus === "published";
+  const isPast = new Date(eventDate).getTime() < Date.now();
+  const disabled = pending || !isPublished || isPast;
 
-    // Auto-lock: once event time has passed (client time)
-    const t = new Date(eventDate).getTime();
-    if (!Number.isFinite(t)) return false;
+  async function setRsvp(nextStatus: "going" | "not_going") {
+    startTransition(async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    return Date.now() >= t;
-  }, [eventStatus, eventDate]);
+      if (!user) {
+        alert("Not authenticated");
+        return;
+      }
 
-  async function setRSVP(next: RSVPStatus) {
-    if (busy || isLocked) return;
+      const { error } = await supabase
+        .from("rsvps")
+        .upsert(
+          {
+            event_id: eventId,
+            user_id: user.id,
+            status: nextStatus,
+          },
+          { onConflict: "event_id,user_id" }
+        );
 
-    setBusy(true);
-    setErr(null);
+      if (error) {
+        alert(error.message);
+        return;
+      }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setErr("Not authenticated");
-      setBusy(false);
-      return;
-    }
-
-    const { error } = await supabase.from("rsvps").upsert(
-      {
-        event_id: eventId,
-        user_id: user.id,
-        status: next,
-      },
-      { onConflict: "event_id,user_id" }
-    );
-
-    if (error) {
-      setErr(error.message);
-      setBusy(false);
-      return;
-    }
-
-    setStatus(next);
-    setBusy(false);
-
-    window.location.href = window.location.pathname;
+      setStatus(nextStatus);
+    });
   }
 
-  const label =
-    status === "going"
-      ? "YOU ARE IN"
-      : status === "not_going"
-      ? "YOU ARE OUT"
-      : "NO RESPONSE YET";
-
-  const color =
-    status === "going"
-      ? "green"
-      : status === "not_going"
-      ? "red"
-      : "#475569";
-
   return (
-    <div style={{ marginTop: 10 }}>
-      <div
+    <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setRsvp("going")}
         style={{
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-          flexWrap: "wrap",
+          padding: "10px 14px",
+          borderRadius: 14,
+          border: "1px solid #1F7A63",
+          background: status === "going" ? "#1F7A63" : "#FFFCF7",
+          color: status === "going" ? "#FFFDF8" : "#1F7A63",
+          fontWeight: 900,
+          fontSize: 13,
+          cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.7 : 1,
         }}
       >
-        <button
-          disabled={busy || isLocked}
-          onClick={() => setRSVP("going")}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 12,
-            border: "1px solid rgba(15,23,42,0.15)",
-            background:
-              status === "going" ? "rgba(16,185,129,0.18)" : "white",
-            fontWeight: 900,
-            cursor: busy || isLocked ? "not-allowed" : "pointer",
-          }}
-        >
-          IN
-        </button>
+        {pending && status !== "going" ? "Saving..." : "I’m In"}
+      </button>
 
-        <button
-          disabled={busy || isLocked}
-          onClick={() => setRSVP("not_going")}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 12,
-            border: "1px solid rgba(15,23,42,0.15)",
-            background:
-              status === "not_going" ? "rgba(239,68,68,0.15)" : "white",
-            fontWeight: 900,
-            cursor: busy || isLocked ? "not-allowed" : "pointer",
-          }}
-        >
-          OUT
-        </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setRsvp("not_going")}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 14,
+          border: "1px solid #8B1E2D",
+          background: status === "not_going" ? "#8B1E2D" : "#FFF3F4",
+          color: status === "not_going" ? "#FFFDF8" : "#8B1E2D",
+          fontWeight: 900,
+          fontSize: 13,
+          cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.7 : 1,
+        }}
+      >
+        {pending && status !== "not_going" ? "Saving..." : "I’m Out"}
+      </button>
 
-        <span
-          style={{
-            marginLeft: 6,
-            fontSize: 13,
-            fontWeight: 800,
-            color,
-          }}
-        >
-          {isLocked ? "LOCKED" : label}
-        </span>
-      </div>
+      {!isPublished && (
+        <div style={{ fontSize: 12, color: "#6A746F", alignSelf: "center" }}>
+          RSVP opens after publish
+        </div>
+      )}
 
-      {err && (
-        <div style={{ marginTop: 8, fontSize: 13, color: "#b91c1c" }}>
-          {err}
+      {isPast && (
+        <div style={{ fontSize: 12, color: "#6A746F", alignSelf: "center" }}>
+          Event has passed
         </div>
       )}
     </div>
