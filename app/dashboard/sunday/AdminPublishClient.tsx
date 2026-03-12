@@ -13,75 +13,66 @@ export default function AdminPublishClient({
   const supabase = createClient();
   const [busy, setBusy] = useState(false);
 
-  async function updateStatus(next: string) {
+  const published = currentStatus === "published";
+
+  async function updateStatus(nextStatus: "draft" | "published") {
     if (busy) return;
     setBusy(true);
 
     const { error } = await supabase
       .from("events")
-      .update({ status: next })
+      .update({ status: nextStatus })
       .eq("id", eventId);
 
     setBusy(false);
 
-    if (!error) {
-      window.location.reload();
-    } else {
+    if (error) {
       alert(error.message);
+      return;
     }
-  }
 
-  let primaryLabel = "";
-  let primaryAction = "";
-
-  if (currentStatus === "draft") {
-    primaryLabel = "Publish";
-    primaryAction = "published";
-  } else if (currentStatus === "published") {
-    primaryLabel = "Lock";
-    primaryAction = "scheduled";
-  } else if (currentStatus === "scheduled") {
-    primaryLabel = "Unlock";
-    primaryAction = "published";
+    window.location.reload();
   }
 
   return (
-    <div style={{ display: "flex", gap: 8 }}>
-      {primaryLabel && (
-        <button
-          disabled={busy}
-          onClick={() => updateStatus(primaryAction)}
-          style={{
-            padding: "4px 10px",
-            borderRadius: 8,
-            border: "1px solid rgba(15,23,42,0.15)",
-            background: "white",
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: busy ? "not-allowed" : "pointer",
-          }}
-        >
-          {primaryLabel}
-        </button>
-      )}
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <button
+        type="button"
+        disabled={busy || published}
+        onClick={() => updateStatus("published")}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 14,
+          border: "1px solid #1F7A63",
+          background: published ? "#EDF7F4" : "#1F7A63",
+          color: published ? "#1F7A63" : "#FFFDF8",
+          fontWeight: 900,
+          fontSize: 13,
+          cursor: busy || published ? "not-allowed" : "pointer",
+          opacity: busy ? 0.7 : 1,
+        }}
+      >
+        {published ? "Published" : "Publish Event"}
+      </button>
 
-      {currentStatus !== "draft" && (
-        <button
-          disabled={busy}
-          onClick={() => updateStatus("draft")}
-          style={{
-            padding: "4px 10px",
-            borderRadius: 8,
-            border: "1px solid rgba(15,23,42,0.15)",
-            background: "#fef2f2",
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: busy ? "not-allowed" : "pointer",
-          }}
-        >
-          Unpublish
-        </button>
-      )}
+      <button
+        type="button"
+        disabled={busy || !published}
+        onClick={() => updateStatus("draft")}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 14,
+          border: "1px solid #D9D3C7",
+          background: !published ? "#F8F3EA" : "#FFFCF7",
+          color: "#17342D",
+          fontWeight: 900,
+          fontSize: 13,
+          cursor: busy || !published ? "not-allowed" : "pointer",
+          opacity: busy ? 0.7 : 1,
+        }}
+      >
+        Move to Draft
+      </button>
     </div>
   );
 }
