@@ -28,7 +28,6 @@ export default function StartSessionClient({
       return;
     }
 
-    // 🔥 Explicitly create as ACTIVE
     const { error: insErr } = await supabase.from("sessions").insert({
       group_key: groupKey,
       format,
@@ -61,7 +60,7 @@ export default function StartSessionClient({
     }
 
     if (!s?.id) {
-      alert("Session created, but app could not read it back (RLS).");
+      alert("Session created, but app could not read it back.");
       return;
     }
 
@@ -74,13 +73,15 @@ export default function StartSessionClient({
         disabled={busy}
         onClick={() => start("cash")}
         style={{
-          padding: "6px 10px",
-          borderRadius: 10,
-          border: "1px solid rgba(15,23,42,0.15)",
-          background: "white",
-          fontWeight: 800,
-          fontSize: 12,
+          padding: "10px 14px",
+          borderRadius: 14,
+          border: "1px solid #1F7A63",
+          background: "#1F7A63",
+          color: "#FFFDF8",
+          fontWeight: 900,
+          fontSize: 13,
           cursor: busy ? "not-allowed" : "pointer",
+          opacity: busy ? 0.7 : 1,
         }}
       >
         Start Cash Session
@@ -90,13 +91,15 @@ export default function StartSessionClient({
         disabled={busy}
         onClick={() => start("tournament")}
         style={{
-          padding: "6px 10px",
-          borderRadius: 10,
-          border: "1px solid rgba(15,23,42,0.15)",
-          background: "white",
-          fontWeight: 800,
-          fontSize: 12,
+          padding: "10px 14px",
+          borderRadius: 14,
+          border: "1px solid #C89B3C",
+          background: "#C89B3C",
+          color: "#FFFDF8",
+          fontWeight: 900,
+          fontSize: 13,
           cursor: busy ? "not-allowed" : "pointer",
+          opacity: busy ? 0.7 : 1,
         }}
       >
         Start Tournament Session
