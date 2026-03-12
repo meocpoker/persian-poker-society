@@ -1,13 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-
-type Member = {
-  user_id: string;
-  full_name: string | null;
-  email: string | null;
-};
 
 export default function SetHostClient({
   eventId,
@@ -16,74 +10,79 @@ export default function SetHostClient({
 }: {
   eventId: string;
   currentHostId: string | null;
-  members: Member[];
+  members: {
+    user_id: string;
+    full_name: string | null;
+    email: string | null;
+    _k: string;
+  }[];
 }) {
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = createClient();
+  const [hostId, setHostId] = useState(currentHostId ?? "");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [hostId, setHostId] = useState<string>(currentHostId ?? "");
 
-  async function save(nextHostId: string) {
+  async function saveHost() {
+    if (busy) return;
     setBusy(true);
-    setErr(null);
-
-    const payload =
-      nextHostId.trim().length === 0 ? { host_user_id: null } : { host_user_id: nextHostId };
 
     const { error } = await supabase
       .from("events")
-      .update(payload)
+      .update({ host_user_id: hostId || null })
       .eq("id", eventId);
 
+    setBusy(false);
+
     if (error) {
-      setErr(error.message);
-      setBusy(false);
+      alert(error.message);
       return;
     }
 
-    setBusy(false);
     window.location.reload();
   }
 
   return (
-    <div>
-      <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>Host for this event</div>
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+      <select
+        value={hostId}
+        onChange={(e) => setHostId(e.target.value)}
+        disabled={busy}
+        style={{
+          minWidth: 240,
+          padding: "10px 12px",
+          borderRadius: 14,
+          border: "1px solid #D9D3C7",
+          background: "#F8F3EA",
+          color: "#17342D",
+          fontSize: 13,
+          opacity: busy ? 0.7 : 1,
+        }}
+      >
+        <option value="">No host selected</option>
+        {members.map((m) => (
+          <option key={m._k} value={m.user_id}>
+            {m.full_name || m.email || m.user_id}
+          </option>
+        ))}
+      </select>
 
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
-        <select
-          value={hostId}
-          disabled={busy}
-          onChange={(e) => {
-            const v = e.target.value;
-            setHostId(v);
-            save(v);
-          }}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 10,
-            border: "1px solid rgba(15,23,42,0.15)",
-            background: "white",
-            minWidth: 260,
-            fontWeight: 700,
-          }}
-        >
-          <option value="">(no host selected)</option>
-
-          {members.map((m) => (
-            <option key={m.user_id} value={m.user_id}>
-              {(m.full_name || m.email || m.user_id).toString()}
-            </option>
-          ))}
-        </select>
-
-        {busy && <span style={{ fontSize: 12, color: "#64748b" }}>Saving…</span>}
-      </div>
-
-      {err && (
-        <div style={{ marginTop: 8, fontSize: 13, color: "#b91c1c" }}>
-          {err}
-        </div>
-      )}
+      <button
+        type="button"
+        onClick={saveHost}
+        disabled={busy}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 14,
+          border: "1px solid #1F7A63",
+          background: "#1F7A63",
+          color: "#FFFDF8",
+          fontWeight: 900,
+          fontSize: 13,
+          cursor: busy ? "not-allowed" : "pointer",
+          opacity: busy ? 0.7 : 1,
+        }}
+      >
+        {busy ? "Saving..." : "Set Host"}
+      </button>
     </div>
   );
 }
