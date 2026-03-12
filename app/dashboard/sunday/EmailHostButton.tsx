@@ -2,48 +2,54 @@
 
 import { useState } from "react";
 
-export default function EmailHostButton({ eventId }: { eventId: string }) {
+export default function EmailHostButton({
+  eventId,
+}: {
+  eventId: string;
+}) {
   const [busy, setBusy] = useState(false);
+
+  async function sendEmail() {
+    if (busy) return;
+    setBusy(true);
+
+    const res = await fetch("/api/sunday/email-host", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ eventId }),
+    });
+
+    setBusy(false);
+
+    if (!res.ok) {
+      const text = await res.text();
+      alert(text || "Failed to email host");
+      return;
+    }
+
+    alert("Host email sent");
+  }
 
   return (
     <button
+      type="button"
+      onClick={sendEmail}
+      disabled={busy}
       style={{
-        marginTop: 12,
-        padding: "8px 14px",
-        borderRadius: 10,
-        border: "1px solid rgba(15,23,42,0.15)",
-        fontWeight: 700,
-        cursor: "pointer",
-        background: "white",
+        padding: "10px 14px",
+        borderRadius: 14,
+        border: "1px solid #C89B3C",
+        background: "#C89B3C",
+        color: "#FFFDF8",
+        fontWeight: 900,
+        fontSize: 13,
+        cursor: busy ? "not-allowed" : "pointer",
         opacity: busy ? 0.7 : 1,
       }}
-      disabled={busy}
-      onClick={async () => {
-        setBusy(true);
-        try {
-          const res = await fetch("/api/sunday/email-host", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ event_id: eventId }),
-          });
-
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) {
-            alert(data?.error || "Request failed");
-            return;
-          }
-
-          if (data?.mailto) {
-            window.location.href = data.mailto;
-          } else {
-            alert(data?.error || "No mailto returned");
-          }
-        } finally {
-          setBusy(false);
-        }
-      }}
     >
-      Email Host
+      {busy ? "Sending..." : "Email Host"}
     </button>
   );
 }
