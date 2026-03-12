@@ -1,14 +1,14 @@
-import React from "react";
+"use client";
 
 export default function PageShell({
-  title,
   eyebrow,
+  title,
   description,
   actions,
   children,
 }: {
-  title: string;
   eyebrow?: string;
+  title: string;
   description?: string;
   actions?: React.ReactNode;
   children: React.ReactNode;
@@ -47,7 +47,7 @@ export default function PageShell({
                   style={{
                     fontSize: 12,
                     fontWeight: 800,
-                    letterSpacing: 1.1,
+                    letterSpacing: 1.2,
                     textTransform: "uppercase",
                     color: "#C89B3C",
                   }}
@@ -56,17 +56,17 @@ export default function PageShell({
                 </div>
               ) : null}
 
-              <h1
+              <div
                 style={{
                   fontSize: 34,
                   lineHeight: 1.1,
                   fontWeight: 900,
-                  margin: "8px 0 0 0",
                   color: "#17342D",
+                  marginTop: 8,
                 }}
               >
                 {title}
-              </h1>
+              </div>
 
               {description ? (
                 <div
@@ -82,7 +82,11 @@ export default function PageShell({
               ) : null}
             </div>
 
-            {actions ? <div style={{ display: "flex", alignItems: "center" }}>{actions}</div> : null}
+            {actions ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                {actions}
+              </div>
+            ) : null}
           </div>
         </div>
 
