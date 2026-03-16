@@ -2,26 +2,32 @@ import { NextResponse } from "next/server";
 import { createClient as createUserClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
-function isAdminEmail(email: string | null | undefined) {
-  const list = (process.env.PMS_ADMIN_EMAILS || "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
+async function isAdmin(userId: string) {
+  const supabase = createServiceClient();
 
-  return !!email && list.includes(email.toLowerCase());
+  const { data } = await supabase
+    .from("admins")
+    .select("user_id")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  return !!data;
 }
 
 export async function GET() {
-  // Verify current user is admin (session-based)
   const supabaseUser = await createUserClient();
   const { data } = await supabaseUser.auth.getUser();
   const user = data?.user;
 
-  if (!user || !isAdminEmail(user.email)) {
+  if (!user) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Service role can read everything
+  if (!(await isAdmin(user.id))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const supabase = createServiceClient();
 
   const { data: rows, error } = await supabase
@@ -38,12 +44,15 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  // Verify current user is admin
   const supabaseUser = await createUserClient();
   const { data } = await supabaseUser.auth.getUser();
   const user = data?.user;
 
-  if (!user || !isAdminEmail(user.email)) {
+  if (!user) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (!(await isAdmin(user.id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
