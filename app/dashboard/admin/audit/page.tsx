@@ -6,6 +6,49 @@ import { sessionDisplayName } from "@/lib/sessions/sessionDisplayName";
 import PageShell from "@/app/components/ui/PageShell";
 import SectionCard from "@/app/components/ui/SectionCard";
 
+function formatAuditTimestamp(value: string) {
+  const dt = new Date(value);
+
+  const datePart = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "2-digit",
+    day: "2-digit",
+    year: "2-digit",
+  }).format(dt);
+
+  const timePart = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(dt);
+
+  return `${datePart} ${timePart} EST`;
+}
+
+function prettyStatus(status: string | null | undefined) {
+  if (!status) return "Completed";
+  if (status.toLowerCase() === "ok") return "Completed";
+  return status;
+}
+
+function prettyAction(action: string | null | undefined) {
+  const a = String(action ?? "").toLowerCase();
+
+  if (a === "lock_session") return "LOCKED";
+  if (a === "unlock_session") return "OPEN AGAIN";
+  if (a === "compute_payout") return "COMPUTED";
+  if (a.includes("set_finish_place")) return "FINISH PLACE UPDATED";
+  if (a.includes("set_addon")) return "ADD-ON UPDATED";
+  if (a.includes("set_rebuys")) return "REBUYS UPDATED";
+  if (a.includes("set_charity")) return "CHARITY UPDATED";
+  if (a.includes("remove_player")) return "PLAYER REMOVED";
+  if (a.includes("add_player")) return "PLAYER ADDED";
+  if (a.includes("open_doostaneh_tournament")) return "TOURNAMENT OPENED";
+
+  return a.replaceAll("_", " ").toUpperCase();
+}
+
 export default async function AuditPage({
   searchParams,
 }: {
@@ -14,7 +57,8 @@ export default async function AuditPage({
     action?: string;
     session?: string;
     page?: string;
-    range?: string;
+    from?: string;
+    to?: string;
   };
 }) {
   const supabase = await createClient();
@@ -35,7 +79,8 @@ export default async function AuditPage({
   const groupFilter = searchParams?.group ?? "";
   const actionFilter = searchParams?.action ?? "";
   const sessionFilter = searchParams?.session ?? "";
-  const rangeFilter = searchParams?.range ?? "";
+  const fromFilter = searchParams?.from ?? "";
+  const toFilter = searchParams?.to ?? "";
 
   const sessionId = sessionFilter || "";
   let sessionRow: any = null;
@@ -59,18 +104,12 @@ export default async function AuditPage({
       (Number(searchParams?.page ?? "1") - 1) * 100 + 99
     );
 
-  if (rangeFilter) {
-    const now = new Date();
-    let since: Date | null = null;
+  if (fromFilter) {
+    query = query.gte("created_at", `${fromFilter}T00:00:00.000Z`);
+  }
 
-    if (rangeFilter === "24h")
-      since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    if (rangeFilter === "7d")
-      since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    if (rangeFilter === "30d")
-      since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    if (since) query = query.gte("created_at", since.toISOString());
+  if (toFilter) {
+    query = query.lte("created_at", `${toFilter}T23:59:59.999Z`);
   }
 
   if (groupFilter) query = query.eq("group_key", groupFilter);
@@ -87,7 +126,7 @@ export default async function AuditPage({
         description="Administrative actions recorded by the system."
       >
         <SectionCard title="Error">
-          <div style={{ color: "red" }}>{error.message}</div>
+          <div style={{ color: "#8B1E2D" }}>{error.message}</div>
         </SectionCard>
       </PageShell>
     );
@@ -99,13 +138,27 @@ export default async function AuditPage({
       title="Admin Audit Log"
       description="Administrative actions recorded by the system."
       actions={
-        <Link href="/dashboard" style={{ fontWeight: 800, color: "#1F7A63" }}>
+        <Link
+          href="/dashboard"
+          style={{
+            fontWeight: 800,
+            color: "#1F7A63",
+            textDecoration: "none",
+          }}
+        >
           Back to Dashboard
         </Link>
       }
     >
       {sessionFilter && sessionRow && (
-        <div style={{ marginBottom: 16, fontSize: 13, fontWeight: 800 }}>
+        <div
+          style={{
+            marginBottom: 16,
+            fontSize: 13,
+            fontWeight: 800,
+            color: "#17342D",
+          }}
+        >
           Session: {sessionDisplayName(sessionRow)}
         </div>
       )}
@@ -118,17 +171,11 @@ export default async function AuditPage({
 
       <SectionCard title="Audit Activity">
         {!logs?.length ? (
-          <div style={{ color: "#64748b" }}>No records found.</div>
+          <div style={{ color: "#6A746F" }}>No records found.</div>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
             {logs.map((log: any, idx: number) => {
               const highlight = Boolean(sessionFilter) && idx === 0;
-
-              const dt = new Date(log.created_at);
-              const when = dt
-                .toISOString()
-                .replace("T", " ")
-                .replace("Z", " UTC");
 
               const sessionHref =
                 log.session_id && log.group_key === "sunday"
@@ -157,28 +204,56 @@ export default async function AuditPage({
                       flexWrap: "wrap",
                     }}
                   >
-                    <div style={{ fontWeight: 900, color: "#17342D" }}>
-                      {log.group_key} · {log.action}
+                    <div
+                      style={{
+                        fontWeight: 900,
+                        color: "#17342D",
+                        fontSize: 14,
+                      }}
+                    >
+                      {log.group_key} · {prettyAction(log.action)}
                     </div>
 
-                    <div style={{ fontSize: 12, color: "#64748b" }}>
-                      {when}
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "#17342D",
+                        fontWeight: 400,
+                      }}
+                    >
+                      {formatAuditTimestamp(log.created_at)}
                     </div>
                   </div>
 
-                  <div style={{ marginTop: 6, fontSize: 13 }}>
-                    <span style={{ color: "#64748b" }}>Status:</span>{" "}
-                    <b>{log.status}</b>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 13,
+                      color: "#17342D",
+                      fontWeight: 400,
+                    }}
+                  >
+                    <span style={{ color: "#17342D" }}>Status:</span>{" "}
+                    {prettyStatus(log.status)}
                   </div>
 
-                  <div style={{ marginTop: 6, fontSize: 13 }}>
-                    <span style={{ color: "#64748b" }}>Session:</span>{" "}
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 13,
+                      color: "#17342D",
+                      fontWeight: 400,
+                    }}
+                  >
+                    <span style={{ color: "#17342D" }}>Session:</span>{" "}
                     {sessionHref ? (
                       <Link
                         href={sessionHref}
                         style={{
                           fontFamily: "monospace",
                           textDecoration: "underline",
+                          color: "#17342D",
+                          fontWeight: 400,
                         }}
                       >
                         {sessionDisplayName({
@@ -187,12 +262,21 @@ export default async function AuditPage({
                         })}
                       </Link>
                     ) : (
-                      <span style={{ fontFamily: "monospace" }}>—</span>
+                      <span style={{ fontFamily: "monospace", color: "#17342D" }}>
+                        —
+                      </span>
                     )}
                   </div>
 
                   {log.message && (
-                    <div style={{ marginTop: 8, fontSize: 13 }}>
+                    <div
+                      style={{
+                        marginTop: 8,
+                        fontSize: 13,
+                        color: "#17342D",
+                        fontWeight: 400,
+                      }}
+                    >
                       {log.message}
                     </div>
                   )}
