@@ -95,7 +95,7 @@ export default async function ChoosePage() {
           )}
 
           {showAdmin && (
-            <PrimaryButton href="/admin" variant="gray">
+  <PrimaryButton href="/admin">
               Admin
             </PrimaryButton>
           )}
