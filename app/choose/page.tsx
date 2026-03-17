@@ -1,15 +1,23 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createServiceClient } from "@/lib/supabase/service";
 import PageShell from "@/app/components/ui/PageShell";
 import SectionCard from "@/app/components/ui/SectionCard";
 import PrimaryButton from "@/app/components/ui/PrimaryButton";
 
 type ApprovedGroup = "doostaneh" | "sunday";
 
+function isAdminEmail(email: string | null | undefined) {
+  const e = String(email ?? "").toLowerCase().trim();
+  return [
+    "kazar@qats.com",
+    "sp90@comcast.net",
+    "sanjar@meoc.net",
+    "farshid.mostowfi@gmail.com",
+  ].includes(e);
+}
+
 export default async function ChoosePage() {
   const supabase = await createClient();
-  const service = createServiceClient();
 
   const { data: userData } = await supabase.auth.getUser();
   const user = userData?.user;
@@ -64,14 +72,7 @@ export default async function ChoosePage() {
     );
   }
 
-  const { data: adminRow } = await service
-    .from("admins")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .limit(1)
-    .maybeSingle();
-
-  const isAdmin = !!adminRow;
+  const showAdmin = isAdminEmail(user.email);
 
   return (
     <PageShell
@@ -93,7 +94,7 @@ export default async function ChoosePage() {
             </PrimaryButton>
           )}
 
-          {isAdmin && (
+          {showAdmin && (
             <PrimaryButton href="/admin" variant="gray">
               Admin
             </PrimaryButton>
