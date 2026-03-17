@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import PageShell from "@/app/components/ui/PageShell";
@@ -81,7 +82,7 @@ export default async function ChoosePage() {
       description="You are approved for multiple groups. Choose where you want to go."
     >
       <SectionCard title="Available Dashboards">
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
           {approved.includes("doostaneh") && (
             <PrimaryButton href="/dashboard/doostaneh">
               Doostaneh Dashboard
@@ -95,9 +96,23 @@ export default async function ChoosePage() {
           )}
 
           {showAdmin && (
-  <PrimaryButton href="/admin">
+            <Link
+              href="/admin"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "10px 16px",
+                borderRadius: 12,
+                background: "#111827",
+                color: "#ffffff",
+                textDecoration: "none",
+                fontSize: 14,
+                fontWeight: 800,
+              }}
+            >
               Admin
-            </PrimaryButton>
+            </Link>
           )}
         </div>
       </SectionCard>
