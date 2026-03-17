@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import PageShell from "@/app/components/ui/PageShell";
 import SectionCard from "@/app/components/ui/SectionCard";
 import PrimaryButton from "@/app/components/ui/PrimaryButton";
@@ -9,6 +9,7 @@ type ApprovedGroup = "doostaneh" | "sunday";
 
 export default async function ChoosePage() {
   const supabase = await createClient();
+  const service = createServiceClient();
 
   const { data: userData } = await supabase.auth.getUser();
   const user = userData?.user;
@@ -63,7 +64,7 @@ export default async function ChoosePage() {
     );
   }
 
-  const { data: adminRow } = await supabase
+  const { data: adminRow } = await service
     .from("admins")
     .select("user_id")
     .eq("user_id", user.id)
