@@ -29,19 +29,23 @@ export default async function RootLayout({
   const user = data?.user;
 
   let pendingCount = 0;
+  let isAdmin = false;
 
   if (user) {
+    // check admin
     const { data: adminRow } = await supabase
       .from("admins")
       .select("user_id")
       .eq("user_id", user.id)
-      .limit(1)
       .maybeSingle();
 
-    if (adminRow) {
+    isAdmin = !!adminRow;
+
+    if (isAdmin) {
+      // 🔥 FIX: force count to return
       const { count } = await supabase
         .from("memberships")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact" })
         .eq("status", "pending");
 
       pendingCount = count || 0;
@@ -79,30 +83,44 @@ export default async function RootLayout({
 
           {user && (
             <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-              <Link href="/dashboard">Dashboard</Link>
-
-              <Link href="/admin" style={{ position: "relative" }}>
-                Admin
-                {pendingCount > 0 && (
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: -6,
-                      right: -10,
-                      background: "#DC2626",
-                      color: "white",
-                      borderRadius: 999,
-                      fontSize: 11,
-                      fontWeight: 800,
-                      padding: "2px 6px",
-                    }}
-                  >
-                    {pendingCount}
-                  </span>
-                )}
+              <Link
+                href="/dashboard"
+                style={{ color: "#111827", fontWeight: 700 }}
+              >
+                Dashboard
               </Link>
 
-              <span style={{ fontSize: 13, color: "#6B7280" }}>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  style={{
+                    position: "relative",
+                    color: "#111827",
+                    fontWeight: 700,
+                  }}
+                >
+                  Admin
+                  {pendingCount > 0 && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: -6,
+                        right: -10,
+                        background: "#DC2626",
+                        color: "white",
+                        borderRadius: 999,
+                        fontSize: 11,
+                        fontWeight: 800,
+                        padding: "2px 6px",
+                      }}
+                    >
+                      {pendingCount}
+                    </span>
+                  )}
+                </Link>
+              )}
+
+              <span style={{ fontSize: 13, color: "#111827" }}>
                 {user.email}
               </span>
             </div>
