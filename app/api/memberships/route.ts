@@ -11,14 +11,21 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  // ✅ ONLY APPROVED memberships
   const { data, error } = await supabase
     .from("memberships")
     .select("group_key,status")
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .eq("status", "approved"); // 🔥 critical fix
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ memberships: data ?? [] });
+  // safety: unique groups only
+  const unique = Array.from(
+    new Set((data ?? []).map((m: any) => m.group_key))
+  ).map((g) => ({ group_key: g, status: "approved" }));
+
+  return NextResponse.json({ memberships: unique });
 }
