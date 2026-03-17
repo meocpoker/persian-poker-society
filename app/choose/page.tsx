@@ -81,16 +81,7 @@ export default async function ChoosePage() {
       title="Choose Dashboard"
       description="You are approved for multiple groups. Choose where you want to go."
     >
-      <SectionCard title="DEBUG">
-        <div style={{ color: "#111827", fontSize: 14 }}>
-          email = {String(user.email)}
-        </div>
-        <div style={{ color: "#111827", fontSize: 14, marginTop: 6 }}>
-          showAdmin = {String(showAdmin)}
-        </div>
-      </SectionCard>
-
-      <div style={{ height: 16 }} />
+     
 
       <SectionCard title="Available Dashboards">
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
