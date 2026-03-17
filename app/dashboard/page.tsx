@@ -9,5 +9,27 @@ export default async function DashboardRootPage() {
 
   if (!user) redirect("/login");
 
-  redirect("/dashboard/sunday");
+  // get approved memberships
+  const { data } = await supabase
+    .from("memberships")
+    .select("group_key")
+    .eq("user_id", user.id)
+    .eq("status", "approved");
+
+  const groups = (data || []).map((m) => m.group_key);
+
+  if (groups.length === 0) {
+    redirect("/choose");
+  }
+
+  if (groups.length === 1) {
+    redirect(
+      groups[0] === "doostaneh"
+        ? "/dashboard/doostaneh"
+        : "/dashboard/sunday"
+    );
+  }
+
+  // multiple groups
+  redirect("/choose");
 }
