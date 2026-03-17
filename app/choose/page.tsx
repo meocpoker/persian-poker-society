@@ -1,73 +1,76 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import PageShell from "@/app/components/ui/PageShell";
 import SectionCard from "@/app/components/ui/SectionCard";
 import PrimaryButton from "@/app/components/ui/PrimaryButton";
 
 type ApprovedGroup = "doostaneh" | "sunday";
 
-export default function ChoosePage() {
-  const router = useRouter();
-  const [approved, setApproved] = useState<ApprovedGroup[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+export default async function ChoosePage() {
+  const supabase = await createClient();
 
-  useEffect(() => {
-    (async () => {
-      const res = await fetch("/api/memberships", { cache: "no-store" });
-      if (!res.ok) {
-        setError("Not authenticated.");
-        return;
-      }
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData?.user;
 
-      const json = await res.json();
-      const list: ApprovedGroup[] = (json.memberships || [])
-        .filter((m: any) => m.status === "approved")
-        .map((m: any) => m.group_key);
+  if (!user) redirect("/login");
 
-      const unique = Array.from(new Set(list)) as ApprovedGroup[];
-
-      if (unique.length === 1) {
-        router.replace(
-          unique[0] === "doostaneh"
-            ? "/dashboard/doostaneh"
-            : "/dashboard/sunday"
-        );
-        return;
-      }
-
-      setApproved(unique);
-    })();
-  }, [router]);
+  const { data: memberships, error } = await supabase
+    .from("memberships")
+    .select("group_key,status")
+    .eq("user_id", user.id)
+    .eq("status", "approved");
 
   if (error) {
     return (
       <PageShell
         eyebrow="Persian Men Society"
         title="Choose Dashboard"
-        description="Select the group dashboard you want to open."
+        description="Select where you want to go."
       >
         <SectionCard title="Error">
-          <div style={{ color: "#8B1E2D" }}>{error}</div>
+          <div style={{ color: "#8B1E2D" }}>{error.message}</div>
         </SectionCard>
       </PageShell>
     );
   }
 
-  if (!approved) {
+  const approved = Array.from(
+    new Set((memberships ?? []).map((m: any) => m.group_key))
+  ) as ApprovedGroup[];
+
+  if (approved.length === 0) {
     return (
       <PageShell
         eyebrow="Persian Men Society"
         title="Choose Dashboard"
-        description="Select the group dashboard you want to open."
+        description="Select where you want to go."
       >
-        <SectionCard title="Loading">
-          <div style={{ color: "#6A746F" }}>Loading...</div>
+        <SectionCard title="Not Approved">
+          <div style={{ color: "#6A746F" }}>
+            Your account is not approved for any game yet. Please wait for admin approval.
+          </div>
         </SectionCard>
       </PageShell>
     );
   }
+
+  if (approved.length === 1) {
+    redirect(
+      approved[0] === "doostaneh"
+        ? "/dashboard/doostaneh"
+        : "/dashboard/sunday"
+    );
+  }
+
+  const { data: adminRow } = await supabase
+    .from("admins")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .limit(1)
+    .maybeSingle();
+
+  const isAdmin = !!adminRow;
 
   return (
     <PageShell
@@ -78,14 +81,20 @@ export default function ChoosePage() {
       <SectionCard title="Available Dashboards">
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           {approved.includes("doostaneh") && (
-            <PrimaryButton onClick={() => router.push("/dashboard/doostaneh")}>
+            <PrimaryButton href="/dashboard/doostaneh">
               Doostaneh Dashboard
             </PrimaryButton>
           )}
 
           {approved.includes("sunday") && (
-            <PrimaryButton onClick={() => router.push("/dashboard/sunday")} variant="gold">
+            <PrimaryButton href="/dashboard/sunday" variant="gold">
               Sunday Poker Dashboard
+            </PrimaryButton>
+          )}
+
+          {isAdmin && (
+            <PrimaryButton href="/admin" variant="gray">
+              Admin
             </PrimaryButton>
           )}
         </div>
