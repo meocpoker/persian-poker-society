@@ -74,6 +74,16 @@ export default async function ChoosePage() {
   }
 
   const showAdmin = isAdminEmail(user.email);
+  let pendingCount = 0;
+
+if (showAdmin) {
+  const { count } = await supabase
+    .from("memberships")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending");
+
+  pendingCount = count || 0;
+}
 
   return (
     <PageShell
@@ -98,24 +108,43 @@ export default async function ChoosePage() {
           )}
 
           {showAdmin && (
-            <Link
-              href="/admin"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "10px 16px",
-                borderRadius: 12,
-                background: "#111827",
-                color: "#ffffff",
-                textDecoration: "none",
-                fontSize: 14,
-                fontWeight: 800,
-              }}
-            >
-              Admin
-            </Link>
-          )}
+  <Link
+    href="/admin"
+    style={{
+      position: "relative",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "10px 16px",
+      borderRadius: 12,
+      background: "#111827",
+      color: "#ffffff",
+      textDecoration: "none",
+      fontSize: 14,
+      fontWeight: 800,
+    }}
+  >
+    Admin
+
+    {pendingCount > 0 && (
+      <span
+        style={{
+          position: "absolute",
+          top: -6,
+          right: -8,
+          background: "#DC2626",
+          color: "white",
+          borderRadius: 999,
+          fontSize: 11,
+          fontWeight: 800,
+          padding: "2px 6px",
+        }}
+      >
+        {pendingCount}
+      </span>
+    )}
+  </Link>
+)}
         </div>
       </SectionCard>
     </PageShell>
