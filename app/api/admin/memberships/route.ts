@@ -2,17 +2,21 @@ import { NextResponse } from "next/server";
 import { createClient as createUserClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
-async function isAdmin(userId: string) {
+async function getAdminGroups(userId: string) {
   const supabase = createServiceClient();
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("admins")
-    .select("user_id")
-    .eq("user_id", userId)
-    .limit(1)
-    .maybeSingle();
+    .select("group_key")
+    .eq("user_id", userId);
 
-  return !!data;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? [])
+    .map((row) => row.group_key)
+    .filter(Boolean) as string[];
 }
 
 export async function GET() {
@@ -24,7 +28,9 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (!(await isAdmin(user.id))) {
+  const adminGroups = await getAdminGroups(user.id);
+
+  if (adminGroups.length === 0) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -34,6 +40,7 @@ export async function GET() {
     .from("memberships")
     .select("id,user_id,group_key,status,created_at,profiles(email,full_name)")
     .eq("status", "pending")
+    .in("group_key", adminGroups)
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -52,10 +59,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (!(await isAdmin(user.id))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
   const body = await req.json().catch(() => null);
   const membershipId = body?.membershipId as string | undefined;
   const status = body?.status as "approved" | "rejected" | undefined;
@@ -64,7 +67,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
   }
 
+  const adminGroups = await getAdminGroups(user.id);
+
+  if (adminGroups.length === 0) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const supabase = createServiceClient();
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("memberships")
+    .select("id,group_key")
+    .eq("id", membershipId)
+    .maybeSingle();
+
+  if (membershipError) {
+    return NextResponse.json({ error: membershipError.message }, { status: 500 });
+  }
+
+  if (!membership) {
+    return NextResponse.json({ error: "Membership not found" }, { status: 404 });
+  }
+
+  if (!adminGroups.includes(membership.group_key)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { error } = await supabase
     .from("memberships")

@@ -48,6 +48,18 @@ export default async function SundayDashboard() {
 
   const isAdmin = !!adminRow;
 
+  let pendingCount = 0;
+
+  if (isAdmin) {
+    const { count } = await supabase
+      .from("memberships")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .eq("group_key", "sunday");
+
+    pendingCount = count || 0;
+  }
+
   const { data: group } = await supabase
     .from("groups")
     .select("id")
@@ -137,16 +149,71 @@ export default async function SundayDashboard() {
       title="Sunday Poker Calendar"
       description="Create events, manage RSVPs, assign hosts, and start Sunday sessions."
       actions={
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <Badge variant="green">Sunday</Badge>
-          {isAdmin ? <Badge variant="gold">Admin</Badge> : null}
+
+          {isAdmin && (
+            <Link
+              href="/admin"
+              style={{
+                position: "relative",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "8px 12px",
+                borderRadius: 999,
+                background: "#111827",
+                color: "#ffffff",
+                textDecoration: "none",
+                fontSize: 13,
+                fontWeight: 800,
+              }}
+            >
+              Admin
+              {pendingCount > 0 && (
+                <span
+                  style={{
+                    marginLeft: 8,
+                    background: "#DC2626",
+                    color: "#ffffff",
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 800,
+                    padding: "2px 6px",
+                    lineHeight: 1,
+                  }}
+                >
+                  {pendingCount}
+                </span>
+              )}
+            </Link>
+          )}
+
           <Badge variant="gray">{visibleEvents.length} Events</Badge>
+
           <Link
             href="/dashboard"
             style={{ color: "#1F7A63", fontWeight: 800, textDecoration: "none" }}
           >
             ← Back to Dashboard
           </Link>
+
+          <form action="/auth/logout" method="post" style={{ margin: 0 }}>
+            <button
+              type="submit"
+              style={{
+                border: "1px solid #D6D3CB",
+                background: "#FFFFFF",
+                color: "#17342D",
+                borderRadius: 12,
+                padding: "10px 14px",
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              Logout
+            </button>
+          </form>
         </div>
       }
     >
