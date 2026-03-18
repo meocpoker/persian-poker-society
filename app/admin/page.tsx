@@ -1,5 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import PageShell from "@/app/components/ui/PageShell";
+import SectionCard from "@/app/components/ui/SectionCard";
+import Badge from "@/app/components/ui/Badge";
 import AdminPanelClient from "./AdminPanelClient";
 
 export default async function AdminPage() {
@@ -17,24 +21,66 @@ export default async function AdminPage() {
 
   if (!adminRows || adminRows.length === 0) redirect("/login");
 
-  const adminGroups = adminRows
-    .map((row) => row.group_key)
-    .filter(Boolean);
+  const adminGroups = Array.from(
+    new Set(adminRows.map((row) => row.group_key).filter(Boolean))
+  );
 
   const groupLabel =
-    adminGroups.length === 2
-      ? "sunday + doostaneh"
-      : adminGroups[0];
+    adminGroups.length === 2 ? "sunday + doostaneh" : adminGroups[0];
+
+  let pendingCount = 0;
+
+  const { count } = await supabase
+    .from("memberships")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending")
+    .in("group_key", adminGroups);
+
+  pendingCount = count || 0;
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 900 }}>Admin • Approvals</h1>
+    <PageShell
+      eyebrow="Persian Men Society"
+      title="Admin Approvals"
+      description={`Review pending membership requests for: ${groupLabel}.`}
+      actions={
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          {adminGroups.includes("sunday") && <Badge variant="gold">Sunday Admin</Badge>}
+          {adminGroups.includes("doostaneh") && <Badge variant="green">Doostaneh Admin</Badge>}
+          <Badge variant="gray">{pendingCount} Pending</Badge>
 
-      <p style={{ marginTop: 6, color: "#475569" }}>
-        Review pending requests for: {groupLabel}
-      </p>
+          <Link
+            href="/dashboard"
+            style={{ color: "#1F7A63", fontWeight: 800, textDecoration: "none" }}
+          >
+            ← Back to Dashboard
+          </Link>
 
-      <AdminPanelClient />
-    </div>
+          <form action="/auth/logout" method="post" style={{ margin: 0 }}>
+            <button
+              type="submit"
+              style={{
+                border: "1px solid #D6D3CB",
+                background: "#FFFFFF",
+                color: "#17342D",
+                borderRadius: 12,
+                padding: "10px 14px",
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              Logout
+            </button>
+          </form>
+        </div>
+      }
+    >
+      <SectionCard
+        title="Pending Requests"
+        subtitle="Approve or reject membership requests for your allowed groups only."
+      >
+        <AdminPanelClient />
+      </SectionCard>
+    </PageShell>
   );
 }
