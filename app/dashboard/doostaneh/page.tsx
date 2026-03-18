@@ -1,24 +1,136 @@
-"use client";
-
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import PageShell from "@/app/components/ui/PageShell";
 import SectionCard from "@/app/components/ui/SectionCard";
+import { createClient } from "@/lib/supabase/server";
 import ComputeButton from "./ComputeButton";
 import AdminActivity from "./AdminActivity";
 import CreateTournamentButton from "./CreateTournamentButton";
 
-function DoostanehDashboardInner() {
-  const searchParams = useSearchParams();
-  const sessionId = searchParams.get("session");
+export default async function DoostanehDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ session?: string }>;
+}) {
+  const params = await searchParams;
+  const sessionId = params.session ?? null;
+
+  const supabase = await createClient();
+
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData?.user;
+
+  if (!user) redirect("/login");
+
+  const { data: memberships, error: memErr } = await supabase
+    .from("memberships")
+    .select("group_key,status")
+    .eq("user_id", user.id);
+
+  if (memErr) redirect("/login");
+
+  const approved = (memberships ?? [])
+    .filter((m: any) => m.status === "approved")
+    .map((m: any) => m.group_key);
+
+  if (!approved.includes("doostaneh")) {
+    if (approved.length === 1 && approved[0] === "sunday") redirect("/dashboard/sunday");
+    if (approved.length >= 2) redirect("/choose");
+    redirect("/login");
+  }
+
+  const { data: adminRow } = await supabase
+    .from("admins")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .eq("group_key", "doostaneh")
+    .maybeSingle();
+
+  const isAdmin = !!adminRow;
+
+  let pendingCount = 0;
+
+  if (isAdmin) {
+    const { count } = await supabase
+      .from("memberships")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .eq("group_key", "doostaneh");
+
+    pendingCount = count || 0;
+  }
 
   return (
     <PageShell
       eyebrow="Persian Men Society"
       title="Doostaneh"
       description="Create a new tournament, then manage players, winners, and payout computation from the session page."
-      actions={<CreateTournamentButton />}
+      actions={
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          {isAdmin && (
+            <Link
+              href="/admin"
+              style={{
+                position: "relative",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "8px 12px",
+                borderRadius: 999,
+                background: "#111827",
+                color: "#ffffff",
+                textDecoration: "none",
+                fontSize: 13,
+                fontWeight: 800,
+              }}
+            >
+              Admin
+              {pendingCount > 0 && (
+                <span
+                  style={{
+                    marginLeft: 8,
+                    background: "#DC2626",
+                    color: "#ffffff",
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 800,
+                    padding: "2px 6px",
+                    lineHeight: 1,
+                  }}
+                >
+                  {pendingCount}
+                </span>
+              )}
+            </Link>
+          )}
+
+          <CreateTournamentButton />
+
+          <Link
+            href="/dashboard"
+            style={{ color: "#1F7A63", fontWeight: 800, textDecoration: "none" }}
+          >
+            ← Back to Dashboard
+          </Link>
+
+          <form action="/auth/logout" method="post" style={{ margin: 0 }}>
+            <button
+              type="submit"
+              style={{
+                border: "1px solid #D6D3CB",
+                background: "#FFFFFF",
+                color: "#17342D",
+                borderRadius: 12,
+                padding: "10px 14px",
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              Logout
+            </button>
+          </form>
+        </div>
+      }
     >
       <div
         style={{
@@ -118,13 +230,5 @@ function DoostanehDashboardInner() {
         </SectionCard>
       </div>
     </PageShell>
-  );
-}
-
-export default function DoostanehDashboard() {
-  return (
-    <Suspense fallback={<div style={{ padding: 20 }}>Loading...</div>}>
-      <DoostanehDashboardInner />
-    </Suspense>
   );
 }
