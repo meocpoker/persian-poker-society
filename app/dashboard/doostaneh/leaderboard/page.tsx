@@ -133,10 +133,7 @@ export default async function DoostanehLeaderboardPage() {
         </Link>
       }
     >
-      <SectionCard
-        title="Player Totals"
-        subtitle="Net = payout minus spent"
-      >
+      <SectionCard title="Player Totals" subtitle="Net = payout minus spent">
         {leaderboard.length === 0 ? (
           <div
             style={{
@@ -158,19 +155,88 @@ export default async function DoostanehLeaderboardPage() {
               }}
             >
               <thead>
-                <tr style={{ background: "#F6F1E8", textAlign: "left" }}>
-                  <th style={{ padding: 12, borderBottom: "1px solid #D9D3C7" }}>Rank</th>
-                  <th style={{ padding: 12, borderBottom: "1px solid #D9D3C7" }}>Player</th>
-                  <th style={{ padding: 12, borderBottom: "1px solid #D9D3C7" }}>Spent</th>
-                  <th style={{ padding: 12, borderBottom: "1px solid #D9D3C7" }}>Payout</th>
-                  <th style={{ padding: 12, borderBottom: "1px solid #D9D3C7" }}>Net</th>
+                <tr
+                  style={{
+                    background: "#F6F1E8",
+                    textAlign: "left",
+                  }}
+                >
+                  <th
+                    style={{
+                      padding: 12,
+                      borderBottom: "1px solid #D9D3C7",
+                      color: "#17342D",
+                      fontWeight: 900,
+                    }}
+                  >
+                    Rank
+                  </th>
+                  <th
+                    style={{
+                      padding: 12,
+                      borderBottom: "1px solid #D9D3C7",
+                      color: "#17342D",
+                      fontWeight: 900,
+                    }}
+                  >
+                    Player
+                  </th>
+                  <th
+                    style={{
+                      padding: 12,
+                      borderBottom: "1px solid #D9D3C7",
+                      color: "#17342D",
+                      fontWeight: 900,
+                    }}
+                  >
+                    Spent
+                  </th>
+                  <th
+                    style={{
+                      padding: 12,
+                      borderBottom: "1px solid #D9D3C7",
+                      color: "#17342D",
+                      fontWeight: 900,
+                    }}
+                  >
+                    Payout
+                  </th>
+                  <th
+                    style={{
+                      padding: 12,
+                      borderBottom: "1px solid #D9D3C7",
+                      color: "#17342D",
+                      fontWeight: 900,
+                    }}
+                  >
+                    Net
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {leaderboard.map((row, index) => (
-                  <tr key={row.id}>
-                    <td style={{ padding: 12, borderBottom: "1px solid #EEE7DA", fontWeight: 800 }}>
-                      {index + 1}
+                  <tr
+  key={row.id}
+  style={{
+    background:
+      index === 0
+        ? "#FFF7D6" // gold
+        : index === 1
+        ? "#F3F4F6" // silver
+        : index === 2
+        ? "#FDE2E2" // bronze
+        : "transparent",
+  }}
+>
+                    <td
+                      style={{
+                        padding: 12,
+                        borderBottom: "1px solid #EEE7DA",
+                        fontWeight: 800,
+                        color: "#374151",
+                      }}
+                    >
+                      {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : index + 1}
                     </td>
                     <td style={{ padding: 12, borderBottom: "1px solid #EEE7DA" }}>
                       <div style={{ fontWeight: 700, color: "#17342D" }}>{row.full_name}</div>
@@ -178,10 +244,24 @@ export default async function DoostanehLeaderboardPage() {
                         <div style={{ fontSize: 12, color: "#6E675D" }}>{row.email}</div>
                       ) : null}
                     </td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #EEE7DA" }}>
+                    <td
+                      style={{
+                        padding: 12,
+                        borderBottom: "1px solid #EEE7DA",
+                        color: "#374151",
+                        fontWeight: 700,
+                      }}
+                    >
                       {money(row.spent)}
                     </td>
-                    <td style={{ padding: 12, borderBottom: "1px solid #EEE7DA" }}>
+                    <td
+                      style={{
+                        padding: 12,
+                        borderBottom: "1px solid #EEE7DA",
+                        color: "#374151",
+                        fontWeight: 700,
+                      }}
+                    >
                       {money(row.payout)}
                     </td>
                     <td
