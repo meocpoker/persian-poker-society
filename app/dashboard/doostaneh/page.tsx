@@ -60,6 +60,13 @@ export default async function DoostanehDashboard({
     pendingCount = count || 0;
   }
 
+  const { data: recentSessions } = await supabase
+    .from("sessions")
+    .select("id, tournament_number, external_game_id, starts_at, status")
+    .eq("group_key", "doostaneh")
+    .order("tournament_number", { ascending: false })
+    .limit(50);
+
   return (
     <PageShell
       eyebrow="Persian Men Society"
@@ -107,6 +114,23 @@ export default async function DoostanehDashboard({
           <CreateTournamentButton />
 
           <Link
+            href="/dashboard/doostaneh/sessions"
+            style={{
+              border: "1px solid #D6D3CB",
+              background: "#17342D",
+              color: "#FFFFFF",
+              borderRadius: 12,
+              padding: "10px 14px",
+              fontWeight: 800,
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+          >
+            View Sessions
+          </Link>
+
+          <Link
             href="/dashboard"
             style={{ color: "#1F7A63", fontWeight: 800, textDecoration: "none" }}
           >
@@ -141,8 +165,27 @@ export default async function DoostanehDashboard({
       >
         <SectionCard
           title="Session Actions"
-          subtitle="Open a session from the audit log or use the active session link."
+          subtitle="Open a session from the sessions page, audit log, or use the active session link."
         >
+          <div style={{ marginBottom: 16 }}>
+            <Link
+              href="/dashboard/doostaneh/sessions"
+              style={{
+                border: "1px solid #D6D3CB",
+                background: "#FFFFFF",
+                color: "#17342D",
+                borderRadius: 12,
+                padding: "10px 14px",
+                fontWeight: 800,
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+              }}
+            >
+              Open Sessions List
+            </Link>
+          </div>
+
           {sessionId ? (
             <>
               <div style={{ fontSize: 12, color: "#7A6F62", fontWeight: 700 }}>
@@ -201,7 +244,7 @@ export default async function DoostanehDashboard({
                 No session selected
               </div>
               <div style={{ marginTop: 8, fontSize: 14, color: "#6E675D" }}>
-                Create a new tournament above, or open a session from the Audit Log.
+                Create a new tournament above, or open a session from the Sessions List.
               </div>
             </div>
           )}
@@ -218,6 +261,57 @@ export default async function DoostanehDashboard({
             <div>Charity: $10 under $80, otherwise $20</div>
             <div>Computation posts to ledger and audit log</div>
           </div>
+        </SectionCard>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <SectionCard
+          title="Recent Sessions"
+          subtitle="Open a historical or current session."
+        >
+          {recentSessions && recentSessions.length > 0 ? (
+            <div style={{ display: "grid", gap: 10 }}>
+              {recentSessions.map((session: any) => (
+                <Link
+                  key={session.id}
+                  href={`/dashboard/doostaneh?session=${session.id}`}
+                  style={{
+                    display: "block",
+                    border: "1px solid #D9D3C7",
+                    borderRadius: 12,
+                    padding: 14,
+                    textDecoration: "none",
+                    background: "#FFFDF8",
+                    color: "#17342D",
+                  }}
+                >
+                  <div style={{ fontWeight: 800, fontSize: 16 }}>
+                    Game {session.tournament_number ?? "—"}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: 13, color: "#6E675D" }}>
+                    {session.external_game_id ?? "No external game id"}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: 13, color: "#6E675D" }}>
+                    {session.starts_at ? new Date(session.starts_at).toLocaleString() : "No date"}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: 13, fontWeight: 700 }}>
+                    Status: {session.status}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                border: "1px dashed #D9D3C7",
+                borderRadius: 14,
+                padding: 16,
+                background: "#FBF7EF",
+              }}
+            >
+              No sessions found.
+            </div>
+          )}
         </SectionCard>
       </div>
 
