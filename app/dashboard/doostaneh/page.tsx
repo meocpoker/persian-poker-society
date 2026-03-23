@@ -112,7 +112,22 @@ export default async function DoostanehDashboard({
           )}
 
           <CreateTournamentButton />
-
+<Link
+  href="/dashboard/doostaneh/leaderboard"
+  style={{
+    border: "1px solid #D6D3CB",
+    background: "#e9cece",
+    color: "#17342D",
+    borderRadius: 12,
+    padding: "10px 14px",
+    fontWeight: 800,
+    textDecoration: "none",
+    display: "inline-flex",
+    alignItems: "center",
+  }}
+>
+  Leaderboard
+</Link>
           <Link
             href="/dashboard/doostaneh/sessions"
             style={{
