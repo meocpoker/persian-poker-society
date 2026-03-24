@@ -114,10 +114,14 @@ export default function LoginPage() {
       `}</style>
 
       <div className="card">
-        <div className="titleRow">
-          <span className="titleEn">Persian Men Society Poker</span>
-          <span className="titleFa">پوکر انجمن مردان پارسی</span>
-        </div>
+        <div className="titleRow" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+  <span className="titleFa" style={{ marginBottom: 6 }}>
+    پاتوق پوکربازان ایرانی
+  </span>
+  <span className="titleEn">
+    Persian Poker Society
+  </span>
+</div>
 
         <div className="subtitleRow">
           <span className="subtitleEn">Member Login</span>
