@@ -12,6 +12,17 @@ function monthLabel(date: Date) {
   return date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 
+function getLocalDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getEventDateKey(eventDate: string) {
+  return String(eventDate).slice(0, 10);
+}
+
 function sameDay(a: Date, b: Date) {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -126,7 +137,7 @@ export default function MonthCalendarClient({
 
         {grid.map((date, idx) => {
           const dayEvents = date
-            ? events.filter((e) => sameDay(new Date(e.event_date), date))
+            ? events.filter((e) => getEventDateKey(e.event_date) === getLocalDateKey(date))
             : [];
 
           const isToday = date ? sameDay(date, today) : false;

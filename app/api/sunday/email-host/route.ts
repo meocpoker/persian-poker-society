@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 export async function POST(req: Request) {
   const supabase = await createClient();
 
-  // 1) Auth
   const { data: userData, error: userErr } = await supabase.auth.getUser();
   const user = userData?.user;
 
@@ -12,7 +11,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // 2) Must be Sunday admin/master
   const { data: adminRow } = await supabase
     .from("admins")
     .select("role")
@@ -24,7 +22,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  // 3) Body
   const body = await req.json().catch(() => ({}));
   const event_id = body?.event_id as string | undefined;
 
@@ -32,7 +29,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing event_id" }, { status: 400 });
   }
 
-  // 4) Load event
   const { data: eventRow, error: eventErr } = await supabase
     .from("events")
     .select("id,title,event_date,host_user_id,group_id")
@@ -43,7 +39,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  // Ensure group slug is sunday
   const { data: groupRow } = await supabase
     .from("groups")
     .select("slug")
@@ -51,69 +46,66 @@ export async function POST(req: Request) {
     .single();
 
   if (!groupRow || groupRow.slug !== "sunday") {
-    return NextResponse.json(
-      { error: "Event is not a Sunday event" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Event is not a Sunday event" }, { status: 400 });
   }
 
   if (!eventRow.host_user_id) {
-    return NextResponse.json(
-      { error: "Host not set for event" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Host not set for event" }, { status: 400 });
   }
 
-  // 5) Host profile
-  const { data: hostProfile } = await supabase
-    .from("profiles")
-    .select("full_name,email")
-    .eq("id", eventRow.host_user_id)
+  const { data: hostMembership } = await supabase
+    .from("memberships")
+    .select("user_id, profiles(full_name,email)")
+    .eq("group_key", "sunday")
+    .eq("status", "approved")
+    .eq("user_id", eventRow.host_user_id)
     .maybeSingle();
 
-  const hostEmail = hostProfile?.email;
+  const hostEmail =
+    (hostMembership as any)?.profiles?.email || null;
 
   if (!hostEmail) {
-    return NextResponse.json(
-      { error: "Host email not found" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Host email not found" }, { status: 400 });
   }
 
-  // 6) Get GOING RSVPs
   const { data: goingRsvps } = await supabase
     .from("rsvps")
     .select("user_id")
     .eq("event_id", event_id)
     .eq("status", "going");
 
-  const userIds = (goingRsvps || []).map((r) => r.user_id);
+  const userIds = Array.from(new Set((goingRsvps || []).map((r) => r.user_id)));
 
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id,full_name,email")
-    .in("id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]);
+  let attendeeLines: string[] = [];
 
-  const map = new Map<string, { full_name: string | null; email: string | null }>();
-  (profiles || []).forEach((p: any) =>
-    map.set(p.id, { full_name: p.full_name, email: p.email })
-  );
+  if (userIds.length > 0) {
+    const { data: attendeeMemberships } = await supabase
+      .from("memberships")
+      .select("user_id, profiles(full_name,email)")
+      .eq("group_key", "sunday")
+      .eq("status", "approved")
+      .in("user_id", userIds);
 
-  const lines = userIds.map((id, i) => {
-    const p = map.get(id);
-    const name = p?.full_name || p?.email || id;
-    return `${i + 1}. ${name}`;
-  });
+    const attendeeMap = new Map<string, string>();
 
-  const title = eventRow.title;
+    (attendeeMemberships || []).forEach((row: any) => {
+      attendeeMap.set(
+        row.user_id,
+        row?.profiles?.full_name || row?.profiles?.email || row.user_id
+      );
+    });
+
+    attendeeLines = userIds.map((id, i) => `${i + 1}. ${attendeeMap.get(id) || id}`);
+  }
+
   const when = new Date(eventRow.event_date).toLocaleString();
+  const subject = `Sunday Poker Host List — ${eventRow.title} (${when})`;
 
-  const subject = `Sunday Poker Host List — ${title} (${when})`;
   const bodyText =
-    `Event: ${title}\n` +
+    `Event: ${eventRow.title}\n` +
     `When: ${when}\n` +
-    `Attending (GOING): ${lines.length}\n\n` +
-    (lines.length ? lines.join("\n") : "No one marked GOING yet.");
+    `Attending (GOING): ${attendeeLines.length}\n\n` +
+    (attendeeLines.length ? attendeeLines.join("\n") : "No one marked GOING yet.");
 
   const mailto =
     `mailto:${encodeURIComponent(hostEmail)}` +

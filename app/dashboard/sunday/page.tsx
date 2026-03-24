@@ -15,6 +15,22 @@ import MetricPill from "@/app/components/ui/MetricPill";
 
 type GroupKey = "doostaneh" | "sunday";
 
+function formatSundayEventDate(eventDate: string) {
+  const dateOnly = String(eventDate).slice(0, 10);
+  const [year, month, day] = dateOnly.split("-").map(Number);
+
+  const stableDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+
+  const datePart = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  }).format(stableDate);
+
+  return `${datePart}, 12:00 PM`;
+}
+
 export default async function SundayDashboard() {
   const supabase = await createClient();
 
@@ -254,7 +270,7 @@ export default async function SundayDashboard() {
                 >
                   <div style={{ fontWeight: 900, color: "#17342D" }}>{e.title}</div>
                   <div style={{ marginTop: 4, fontSize: 13, color: "#6A746F" }}>
-                    {new Date(e.event_date).toLocaleString()}
+                    {formatSundayEventDate(e.event_date)}
                   </div>
                   <div style={{ marginTop: 8 }}>
                     <Badge variant={e.status === "published" ? "green" : "gray"}>
@@ -308,7 +324,7 @@ export default async function SundayDashboard() {
                             {e.title}
                           </div>
                           <div style={{ marginTop: 4, fontSize: 13, color: "#6A746F" }}>
-                            {new Date(e.event_date).toLocaleString()}
+                            {formatSundayEventDate(e.event_date)}
                           </div>
                         </div>
 

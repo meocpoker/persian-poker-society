@@ -87,23 +87,25 @@ export default function StartSessionClient({
         Start Cash Session
       </button>
 
-      <button
-        disabled={busy}
-        onClick={() => start("tournament")}
-        style={{
-          padding: "10px 14px",
-          borderRadius: 14,
-          border: "1px solid #C89B3C",
-          background: "#C89B3C",
-          color: "#FFFDF8",
-          fontWeight: 900,
-          fontSize: 13,
-          cursor: busy ? "not-allowed" : "pointer",
-          opacity: busy ? 0.7 : 1,
-        }}
-      >
-        Start Tournament Session
-      </button>
+      {groupKey === "doostaneh" && (
+        <button
+          disabled={busy}
+          onClick={() => start("tournament")}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 14,
+            border: "1px solid #C89B3C",
+            background: "#C89B3C",
+            color: "#FFFDF8",
+            fontWeight: 900,
+            fontSize: 13,
+            cursor: busy ? "not-allowed" : "pointer",
+            opacity: busy ? 0.7 : 1,
+          }}
+        >
+          Start Tournament Session
+        </button>
+      )}
     </div>
   );
 }

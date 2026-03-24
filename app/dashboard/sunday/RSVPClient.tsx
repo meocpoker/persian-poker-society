@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function RSVPClient({
@@ -15,6 +16,7 @@ export default function RSVPClient({
   eventDate: string;
 }) {
   const supabase = createClient();
+  const router = useRouter();
   const [status, setStatus] = useState<string | null>(initialStatus);
   const [pending, startTransition] = useTransition();
 
@@ -50,6 +52,7 @@ export default function RSVPClient({
       }
 
       setStatus(nextStatus);
+      router.refresh();
     });
   }
 

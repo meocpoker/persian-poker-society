@@ -18,18 +18,24 @@ export default function EmailHostButton({
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ eventId }),
+      body: JSON.stringify({ event_id: eventId }),
     });
+
+    const json = await res.json().catch(() => null);
 
     setBusy(false);
 
     if (!res.ok) {
-      const text = await res.text();
-      alert(text || "Failed to email host");
+      alert(json?.error || "Failed to email host");
       return;
     }
 
-    alert("Host email sent");
+    if (json?.mailto) {
+      window.location.href = json.mailto;
+      return;
+    }
+
+    alert("Host email prepared");
   }
 
   return (
