@@ -311,6 +311,45 @@ export default function DoostanehSessionPage() {
       )
     );
 
+  const sessionSummaryRows = useMemo(() => {
+    return inSessionOptions.map((p) => {
+      const values = byPlayer.get(p.player_id) ?? { buyin: 0, rebuy: 0, addon: 0 };
+      const spent = (values.buyin || 0) + (values.rebuy || 0) + (values.addon || 0);
+
+      const payout = ledger
+        .filter(
+          (l) => l.txn_type === "payout" && l.registry_player_id === p.player_id
+        )
+        .reduce((sum, l) => sum + Number(l.delta_usd || 0), 0);
+
+      return {
+        playerId: p.player_id,
+        fullName: p.player_registry?.full_name ?? "(no name)",
+        spent,
+        payout,
+        net: payout - spent,
+      };
+    });
+  }, [inSessionOptions, byPlayer, ledger]);
+
+  const rankedSessionSummaryRows = useMemo(() => {
+    return [...sessionSummaryRows].sort((a, b) => {
+      if (b.net !== a.net) return b.net - a.net;
+      if (b.payout !== a.payout) return b.payout - a.payout;
+      return a.fullName.localeCompare(b.fullName);
+    });
+  }, [sessionSummaryRows]);
+
+  const summaryTotals = useMemo(() => {
+    const totalSpent = sessionSummaryRows.reduce((sum, row) => sum + row.spent, 0);
+    const totalPayout = sessionSummaryRows.reduce((sum, row) => sum + row.payout, 0);
+
+    return {
+      totalSpent,
+      totalPayout,
+    };
+  }, [sessionSummaryRows]);
+
   return (
     <div
       style={{
@@ -834,6 +873,121 @@ export default function DoostanehSessionPage() {
           </SectionCard>
         </div>
 
+        <div style={{ marginTop: 18 }}>
+          <SectionCard
+            title="Session Summary"
+            subtitle="Players ranked by net result for this game."
+          >
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+              <Badge
+                label={`Total Spent: $${summaryTotals.totalSpent.toFixed(2)}`}
+                tone="neutral"
+              />
+              <Badge
+                label={`Total Payout: $${summaryTotals.totalPayout.toFixed(2)}`}
+                tone="green"
+              />
+            </div>
+
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
+                <thead>
+                  <tr style={{ textAlign: "left", fontSize: 12, color: "#17342D" }}>
+                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
+                      Rank
+                    </th>
+                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
+                      Player
+                    </th>
+                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
+                      Spent
+                    </th>
+                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
+                      Payout
+                    </th>
+                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
+                      Net
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rankedSessionSummaryRows.map((row, index) => {
+                    const rowTone =
+                      index === 0
+                        ? "#FBF6EA"
+                        : index === 1
+                        ? "#FCF9F2"
+                        : index === 2
+                        ? "#FFFCF7"
+                        : "transparent";
+
+                    const rankLabel = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}`;
+
+                    return (
+                      <tr key={row.playerId} style={{ background: rowTone }}>
+                        <td
+                          style={{
+                            padding: "14px 10px",
+                            borderBottom: "1px solid #F0EBE2",
+                            fontWeight: 900,
+                            color: "#8A6A1F",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {rankLabel}
+                        </td>
+                        <td
+                          style={{
+                            padding: "14px 10px",
+                            borderBottom: "1px solid #F0EBE2",
+                            fontWeight: 900,
+                            color: "#17342D",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <span>{row.fullName}</span>
+                            {row.payout > 0 ? <Badge label="Winner" tone="gold" /> : null}
+                          </div>
+                        </td>
+                        <td
+                          style={{
+                            padding: "14px 10px",
+                            borderBottom: "1px solid #F0EBE2",
+                            color: "#4E5B55",
+                            fontWeight: 700,
+                          }}
+                        >
+                          ${row.spent.toFixed(2)}
+                        </td>
+                        <td
+                          style={{
+                            padding: "14px 10px",
+                            borderBottom: "1px solid #F0EBE2",
+                            color: "#1F7A63",
+                            fontWeight: 700,
+                          }}
+                        >
+                          ${row.payout.toFixed(2)}
+                        </td>
+                        <td
+                          style={{
+                            padding: "14px 10px",
+                            borderBottom: "1px solid #F0EBE2",
+                            fontWeight: 900,
+                            color: row.net >= 0 ? "#1F7A63" : "#8B1E2D",
+                          }}
+                        >
+                          {row.net > 0 ? "+" : ""}${row.net.toFixed(2)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+        </div>
+
         {payoutRows.length > 0 && (
           <div style={{ marginTop: 18 }}>
             <SectionCard
@@ -841,7 +995,12 @@ export default function DoostanehSessionPage() {
               subtitle="Final payouts and charity distribution."
             >
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-                <Badge label={`Tournament Date: ${session?.starts_at ? new Date(session.starts_at).toLocaleDateString() : "-"}`} tone="neutral" />
+                <Badge
+                  label={`Tournament Date: ${
+                    session?.starts_at ? new Date(session.starts_at).toLocaleDateString() : "-"
+                  }`}
+                  tone="neutral"
+                />
                 <Badge label={`Prize Pool: $${totals.prizePool.toFixed(2)}`} tone="green" />
                 <Badge label={`Charity: $${totals.charity.toFixed(2)}`} tone="gold" />
               </div>
