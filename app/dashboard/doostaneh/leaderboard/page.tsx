@@ -118,11 +118,56 @@ export default async function DoostanehLeaderboardPage() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: "#F6F1E8", textAlign: "left" }}>
-                  <th style={{ padding: 12 }}>Rank</th>
-                  <th style={{ padding: 12 }}>Player</th>
-                  <th style={{ padding: 12 }}>Spent</th>
-                  <th style={{ padding: 12 }}>Payout</th>
-                  <th style={{ padding: 12 }}>Net</th>
+                  <th
+                    style={{
+                      padding: 12,
+                      borderBottom: "1px solid #D9D3C7",
+                      color: "#17342D",
+                      fontWeight: 900,
+                    }}
+                  >
+                    Rank
+                  </th>
+                  <th
+                    style={{
+                      padding: 12,
+                      borderBottom: "1px solid #D9D3C7",
+                      color: "#17342D",
+                      fontWeight: 900,
+                    }}
+                  >
+                    Player
+                  </th>
+                  <th
+                    style={{
+                      padding: 12,
+                      borderBottom: "1px solid #D9D3C7",
+                      color: "#17342D",
+                      fontWeight: 900,
+                    }}
+                  >
+                    Spent
+                  </th>
+                  <th
+                    style={{
+                      padding: 12,
+                      borderBottom: "1px solid #D9D3C7",
+                      color: "#17342D",
+                      fontWeight: 900,
+                    }}
+                  >
+                    Payout
+                  </th>
+                  <th
+                    style={{
+                      padding: 12,
+                      borderBottom: "1px solid #D9D3C7",
+                      color: "#17342D",
+                      fontWeight: 900,
+                    }}
+                  >
+                    Net
+                  </th>
                 </tr>
               </thead>
 
@@ -139,32 +184,59 @@ export default async function DoostanehLeaderboardPage() {
 
                   return (
                     <tr key={row.id} style={{ background: bg }}>
-                      <td style={{ padding: 12, fontWeight: 900 }}>
+                      <td
+                        style={{
+                          padding: 12,
+                          borderBottom: "1px solid #EEE7DA",
+                          fontWeight: 800,
+                          color: "#374151",
+                        }}
+                      >
                         {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : index + 1}
                       </td>
 
-                      <td style={{ padding: 12 }}>
-                        <div style={{ fontWeight: 900 }}>{row.full_name}</div>
-                        {row.email && (
-                          <div style={{ fontSize: 12, color: "#6E675D" }}>
-                            {row.email}
-                          </div>
-                        )}
+                      <td
+                        style={{
+                          padding: 12,
+                          borderBottom: "1px solid #EEE7DA",
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, color: "#17342D" }}>{row.full_name}</div>
+                        {row.email ? (
+                          <div style={{ fontSize: 12, color: "#6E675D" }}>{row.email}</div>
+                        ) : null}
                       </td>
 
-                      <td style={{ padding: 12 }}>{money(row.spent)}</td>
-                      <td style={{ padding: 12, color: "#1F7A63", fontWeight: 700 }}>
+                      <td
+                        style={{
+                          padding: 12,
+                          borderBottom: "1px solid #EEE7DA",
+                          color: "#374151",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {money(row.spent)}
+                      </td>
+
+                      <td
+                        style={{
+                          padding: 12,
+                          borderBottom: "1px solid #EEE7DA",
+                          color: "#374151",
+                          fontWeight: 700,
+                        }}
+                      >
                         {money(row.payout)}
                       </td>
 
                       <td
                         style={{
                           padding: 12,
-                          fontWeight: 900,
+                          borderBottom: "1px solid #EEE7DA",
+                          fontWeight: 800,
                           color: row.net >= 0 ? "#166534" : "#991B1B",
                         }}
                       >
-                        {row.net > 0 ? "+" : ""}
                         {money(row.net)}
                       </td>
                     </tr>
