@@ -170,10 +170,11 @@ export default async function SundaySessionPage(props: any) {
   }
 
   const statusLower = String((lifecycle as any)?.status ?? "").toLowerCase();
+  const isAlreadyComputed = Boolean((lifecycle as any)?.already_computed);
   const isLockedOrComputed =
     statusLower === "locked" ||
     statusLower === "computed" ||
-    Boolean((lifecycle as any)?.already_computed);
+    isAlreadyComputed;
 
   const { data: sessionPlayersRaw, error: spErr } = await supabase
     .from("session_registry_players")
@@ -356,7 +357,7 @@ export default async function SundaySessionPage(props: any) {
                   label={`Status: ${(lifecycle as any)?.status ?? "unknown"}`}
                   tone={statusTone}
                 />
-                {statusLower === "computed" && (
+                {(statusLower === "computed" || isAlreadyComputed) && (
                   <Badge label="Settlement Ready" tone="blue" />
                 )}
               </div>
@@ -430,7 +431,7 @@ export default async function SundaySessionPage(props: any) {
                     </form>
                   )}
 
-                  {statusLower === "computed" && (
+                  {(statusLower === "computed" || isAlreadyComputed) && (
                     <form
                       action={`/dashboard/sunday/sessions/${sessionId}/email-results`}
                       method="post"
@@ -461,7 +462,7 @@ export default async function SundaySessionPage(props: any) {
                   {!Boolean((lifecycle as any)?.can_lock) &&
                     !Boolean((lifecycle as any)?.can_unlock) &&
                     !Boolean((lifecycle as any)?.can_compute) &&
-                    statusLower !== "computed" && (
+                    !(statusLower === "computed" || isAlreadyComputed) && (
                       <div
                         style={{
                           fontSize: 13,
