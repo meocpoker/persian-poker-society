@@ -60,7 +60,7 @@ export async function POST(req: Request, ctx: any) {
   const statusLower = String((lifecycle as any)?.status ?? "").toLowerCase();
   const isAlreadyComputed = Boolean((lifecycle as any)?.already_computed);
 
-if (statusLower !== "computed" && !isAlreadyComputed) {
+  if (statusLower !== "computed" && !isAlreadyComputed) {
     return NextResponse.json(
       { ok: false, error: "Session must be computed before emailing results." },
       { status: 400 }
@@ -134,9 +134,9 @@ if (statusLower !== "computed" && !isAlreadyComputed) {
 
   const { data: ledgerRows, error: ledgerErr } = await supabase
     .from("ledger_transactions")
-    .select("registry_player_id, delta_usd, session_id, group_key")
+    .select("registry_player_id, delta_usd")
     .eq("session_id", sessionId)
-    .eq("group_key", "sunday");
+    .eq("group_key", "friday");
 
   if (ledgerErr) {
     return NextResponse.json({ ok: false, error: ledgerErr.message }, { status: 400 });
@@ -203,10 +203,10 @@ if (statusLower !== "computed" && !isAlreadyComputed) {
       })
     : "Unknown date";
 
-  const subject = `Sunday Game Results - ${sessionDate}`;
+  const subject = `Friday Game Results - ${sessionDate}`;
 
   const textLines = [
-    `Sunday Game Results`,
+    `Friday Game Results`,
     ``,
     `Session: ${sessionId}`,
     `Date: ${sessionDate}`,
@@ -243,7 +243,7 @@ if (statusLower !== "computed" && !isAlreadyComputed) {
 
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;color:#17342D;line-height:1.5;">
-      <h2 style="margin:0 0 12px 0;">Sunday Game Results</h2>
+      <h2 style="margin:0 0 12px 0;">Friday Game Results</h2>
       <p style="margin:0 0 6px 0;"><strong>Session:</strong> ${escapeHtml(sessionId)}</p>
       <p style="margin:0 0 18px 0;"><strong>Date:</strong> ${escapeHtml(sessionDate)}</p>
 
@@ -286,8 +286,6 @@ if (statusLower !== "computed" && !isAlreadyComputed) {
     );
   }
 
-  const dest = new URL(`/dashboard/sunday/sessions/${sessionId}`, req.url);
-  const res = NextResponse.redirect(dest, { status: 303 });
-  res.headers.set("Cache-Control", "no-store");
-  return res;
+  const dest = new URL(`/dashboard/friday/sessions/${sessionId}`, req.url);
+  return NextResponse.redirect(dest, { status: 303 });
 }
