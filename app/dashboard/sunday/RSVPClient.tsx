@@ -4,16 +4,20 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+type GroupKey = "sunday" | "friday";
+
 export default function RSVPClient({
   eventId,
   initialStatus,
   eventStatus,
   eventDate,
+  groupKey = "sunday",
 }: {
   eventId: string;
   initialStatus: string | null;
   eventStatus: string;
   eventDate: string;
+  groupKey?: GroupKey;
 }) {
   const supabase = createClient();
   const router = useRouter();
@@ -52,6 +56,12 @@ export default function RSVPClient({
       }
 
       setStatus(nextStatus);
+
+      if (groupKey === "friday") {
+        window.location.reload();
+        return;
+      }
+
       router.refresh();
     });
   }

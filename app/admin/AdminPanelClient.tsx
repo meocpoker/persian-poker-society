@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 type PendingRow = {
   id: string;
   user_id: string;
-  group_key: "doostaneh" | "sunday";
+  group_key: "doostaneh" | "sunday" | "friday";
   status: "pending" | "approved" | "rejected";
   created_at: string;
   profiles?: { email: string | null; full_name: string | null } | null;
@@ -118,6 +118,11 @@ export default function AdminPanelClient() {
           border: 1px solid #E5D2A1;
           color: #8A6A1F;
         }
+        .groupFriday {
+          background: #FBF6EA;
+          border: 1px solid #E5D2A1;
+          color: #8A6A1F;
+        }
         .groupDoostaneh {
           background: #EDF7F4;
           border: 1px solid #B9D7CF;
@@ -177,6 +182,7 @@ export default function AdminPanelClient() {
         const name = r.profiles?.full_name || "Unnamed member";
         const email = r.profiles?.email || "(no email yet)";
         const isSunday = r.group_key === "sunday";
+        const isFriday = r.group_key === "friday";
 
         return (
           <div className="card" key={r.id}>
@@ -186,9 +192,15 @@ export default function AdminPanelClient() {
                 <div className="email">{email}</div>
 
                 <div
-                  className={`groupPill ${isSunday ? "groupSunday" : "groupDoostaneh"}`}
+                  className={`groupPill ${
+                    isSunday
+                      ? "groupSunday"
+                      : isFriday
+                      ? "groupFriday"
+                      : "groupDoostaneh"
+                  }`}
                 >
-                  {isSunday ? "Sunday" : "Doostaneh"}
+                  {isSunday ? "Sunday" : isFriday ? "Friday" : "Doostaneh"}
                 </div>
 
                 <div className="meta">

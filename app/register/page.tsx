@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type GroupKey = "doostaneh" | "sunday";
-type Choice = "doostaneh" | "sunday" | "both";
+type GroupKey = "doostaneh" | "sunday" | "friday";
+type Choice = "doostaneh" | "sunday" | "friday" | "all_three";
 
 export default function RegisterPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -18,43 +18,6 @@ export default function RegisterPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  async function ensureProfile(userId: string) {
-    const { error } = await supabase
-      .from("profiles")
-      .upsert({ id: userId, email, full_name: fullName }, { onConflict: "id" });
-
-    if (error) throw error;
-  }
-
-  async function createOrResetMemberships(userId: string, groups: GroupKey[]) {
-    // Try insert pending rows first
-    const rows = groups.map((g) => ({
-      user_id: userId,
-      group_key: g,
-      status: "pending",
-    }));
-
-    const { error } = await supabase.from("memberships").insert(rows);
-
-    if (!error) return;
-
-    // If already exists, flip to pending
-    const msg = (error.message || "").toLowerCase();
-    const isDuplicate = msg.includes("duplicate key") || msg.includes("23505");
-
-    if (!isDuplicate) throw error;
-
-    for (const g of groups) {
-      const { error: updErr } = await supabase
-        .from("memberships")
-        .update({ status: "pending" })
-        .eq("user_id", userId)
-        .eq("group_key", g);
-
-      if (updErr) throw updErr;
-    }
-  }
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg(null);
@@ -62,7 +25,6 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // 1) Create Auth user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -73,14 +35,29 @@ export default function RegisterPage() {
       const userId = data.user?.id;
       if (!userId) throw new Error("Signup succeeded but no user ID returned.");
 
-      // 2) Create/update profile
-      await ensureProfile(userId);
-
-      // 3) Create pending membership requests
       const groups: GroupKey[] =
-        choice === "both" ? ["doostaneh", "sunday"] : [choice];
+        choice === "all_three"
+          ? ["doostaneh", "sunday", "friday"]
+          : [choice];
 
-      await createOrResetMemberships(userId, groups);
+      const res = await fetch("/api/register/request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          fullName,
+          email,
+          groups,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json?.error || "Failed to create membership request.");
+      }
 
       setSuccessMsg(
         "Request submitted. Your membership is pending admin approval."
@@ -131,6 +108,11 @@ export default function RegisterPage() {
           outline: none;
           font-size: 14px;
           background: white;
+          color: #0f172a;
+        }
+        .field::placeholder {
+          color: #64748b;
+          opacity: 1;
         }
         .field:focus {
           border-color: rgba(16,185,129,0.95);
@@ -138,12 +120,27 @@ export default function RegisterPage() {
         }
 
         .optionBox {
-          display: flex; align-items: center; gap: 10px;
-          padding: 12px; border-radius: 10px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px;
+          border-radius: 10px;
           border: 1px solid rgba(148,163,184,0.6);
-          margin-bottom: 10px; cursor: pointer; user-select: none;
+          margin-bottom: 10px;
+          cursor: pointer;
+          user-select: none;
+          color: #0f172a;
+          background: #ffffff;
+          font-size: 14px;
+          font-weight: 600;
         }
-        .optionBox:hover { border-color: #10b981; background: rgba(16,185,129,0.05); }
+        .optionBox:hover {
+          border-color: #10b981;
+          background: rgba(16,185,129,0.05);
+        }
+        .optionBox input[type="radio"] {
+          accent-color: #0f766e;
+        }
 
         .btn {
           width: 100%;
@@ -176,7 +173,7 @@ export default function RegisterPage() {
       <div className="card">
         <div className="titleRow">
           <span className="titleEn">Persian Men Society Poker</span>
-          <span className="titleFa">پوکر انجمن مردان پارسی</span>
+          <span className="titleFa">پاتوق پوکربازان ایرانی</span>
         </div>
 
         <div className="subtitleRow">
@@ -222,35 +219,45 @@ export default function RegisterPage() {
             Registering for
           </label>
 
-          <div className="optionBox" onClick={() => setChoice("doostaneh")}>
+          <label className="optionBox">
             <input
               type="radio"
               name="game"
               checked={choice === "doostaneh"}
               onChange={() => setChoice("doostaneh")}
             />
-            Doostaneh • دوستانه
-          </div>
+            <span>Doostaneh • دوستانه</span>
+          </label>
 
-          <div className="optionBox" onClick={() => setChoice("sunday")}>
+          <label className="optionBox">
             <input
               type="radio"
               name="game"
               checked={choice === "sunday"}
               onChange={() => setChoice("sunday")}
             />
-            Sunday Poker • پوکر یکشنبه
-          </div>
+            <span>Sunday Poker • پوکر یکشنبه</span>
+          </label>
 
-          <div className="optionBox" onClick={() => setChoice("both")}>
+          <label className="optionBox">
             <input
               type="radio"
               name="game"
-              checked={choice === "both"}
-              onChange={() => setChoice("both")}
+              checked={choice === "friday"}
+              onChange={() => setChoice("friday")}
             />
-            Both • هر دو
-          </div>
+            <span>Friday • جمعه</span>
+          </label>
+
+          <label className="optionBox">
+            <input
+              type="radio"
+              name="game"
+              checked={choice === "all_three"}
+              onChange={() => setChoice("all_three")}
+            />
+            <span>All Three • هر سه</span>
+          </label>
 
           <button className="btn" type="submit" disabled={loading}>
             {loading ? "Submitting..." : "Request Approval"}

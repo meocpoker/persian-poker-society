@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type ApprovedGroup = "doostaneh" | "sunday";
+type ApprovedGroup = "doostaneh" | "sunday" | "friday";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,7 +28,11 @@ export default function LoginPage() {
 
     const approved: ApprovedGroup[] = (json.memberships || [])
       .filter((m: any) => m.status === "approved")
-      .map((m: any) => m.group_key);
+      .map((m: any) => m.group_key)
+      .filter(
+        (g: any): g is ApprovedGroup =>
+          g === "doostaneh" || g === "sunday" || g === "friday"
+      );
 
     if (approved.length === 0) {
       setErrorMsg(
@@ -41,7 +45,9 @@ export default function LoginPage() {
       router.push(
         approved[0] === "doostaneh"
           ? "/dashboard/doostaneh"
-          : "/dashboard/sunday"
+          : approved[0] === "sunday"
+          ? "/dashboard/sunday"
+          : "/dashboard/friday"
       );
       return;
     }
@@ -115,13 +121,11 @@ export default function LoginPage() {
 
       <div className="card">
         <div className="titleRow" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-  <span className="titleFa" style={{ marginBottom: 6 }}>
-    پاتوق پوکربازان ایرانی
-  </span>
-  <span className="titleEn">
-    Persian Poker Society
-  </span>
-</div>
+          <span className="titleFa" style={{ marginBottom: 6 }}>
+            پاتوق پوکربازان ایرانی
+          </span>
+          <span className="titleEn">Persian Poker Society</span>
+        </div>
 
         <div className="subtitleRow">
           <span className="subtitleEn">Member Login</span>

@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+type GroupKey = "sunday" | "friday";
 
 type PlayerOption = {
   id: string;
@@ -19,14 +22,21 @@ export default function SundayAdminTableClient({
   addablePlayers,
   initialRows,
   disabled,
+  groupKey = "sunday",
 }: {
   sessionId: string;
   addablePlayers: PlayerOption[];
   initialRows: TableRow[];
   disabled: boolean;
+  groupKey?: GroupKey;
 }) {
+  const router = useRouter();
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const isFriday = groupKey === "friday";
+  const groupLabel = isFriday ? "Friday" : "Sunday";
+  const apiBase = isFriday ? "/api/friday" : "/api/sunday";
 
   const totals = useMemo(() => {
     const totalBuyin = initialRows.reduce((s, r) => s + Number(r.buyin || 0), 0);
@@ -39,13 +49,26 @@ export default function SundayAdminTableClient({
     if (!selectedPlayerId) return;
     setBusy(true);
 
-    await fetch(`/api/sunday/sessions/${sessionId}/add-player`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ player_id: selectedPlayerId }),
-    });
+    try {
+      const res = await fetch(`${apiBase}/sessions/${sessionId}/add-player`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ player_id: selectedPlayerId }),
+      });
 
-    window.location.reload();
+      const text = await res.text();
+
+      if (!res.ok) {
+        alert(text || `Add player failed (${res.status})`);
+        return;
+      }
+
+      router.refresh();
+    } catch (error: any) {
+      alert(error?.message || "Add player failed");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function saveAmount(
@@ -56,19 +79,32 @@ export default function SundayAdminTableClient({
     const amount = Number(rawValue || 0);
     setBusy(true);
 
-    await fetch(
-      `/api/sunday/sessions/${sessionId}/${type === "buyin" ? "set-buyin" : "set-cashout"}`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          player_id: playerId,
-          amount,
-        }),
-      }
-    );
+    try {
+      const res = await fetch(
+        `${apiBase}/sessions/${sessionId}/${type === "buyin" ? "set-buyin" : "set-cashout"}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            player_id: playerId,
+            amount,
+          }),
+        }
+      );
 
-    window.location.reload();
+      const text = await res.text();
+
+      if (!res.ok) {
+        alert(text || `${type} failed (${res.status})`);
+        return;
+      }
+
+      router.refresh();
+    } catch (error: any) {
+      alert(error?.message || `${type} failed`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -83,11 +119,11 @@ export default function SundayAdminTableClient({
       }}
     >
       <div style={{ fontSize: 18, fontWeight: 900, color: "#17342D" }}>
-        Sunday Player Entry
+        {groupLabel} Player Entry
       </div>
 
       <div style={{ fontSize: 13, color: "#6A746F", marginTop: 6 }}>
-        Add approved Sunday players, then enter one total buy-in and one total cash-out for each player.
+        Add approved {groupLabel} players, then enter one total buy-in and one total cash-out for each player.
       </div>
 
       <div
@@ -114,7 +150,7 @@ export default function SundayAdminTableClient({
             opacity: disabled || busy ? 0.7 : 1,
           }}
         >
-          <option value="">Add approved Sunday player...</option>
+          <option value="">Add approved {groupLabel} player...</option>
           {addablePlayers.map((p) => (
             <option key={p.id} value={p.id}>
               {p.full_name ?? p.id}

@@ -25,8 +25,7 @@ export default async function AdminPage() {
     new Set(adminRows.map((row) => row.group_key).filter(Boolean))
   );
 
-  const groupLabel =
-    adminGroups.length === 2 ? "sunday + doostaneh" : adminGroups[0];
+  const groupLabel = adminGroups.join(" + ");
 
   let pendingCount = 0;
 
@@ -46,6 +45,7 @@ export default async function AdminPage() {
       actions={
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           {adminGroups.includes("sunday") && <Badge variant="gold">Sunday Admin</Badge>}
+          {adminGroups.includes("friday") && <Badge variant="gold">Friday Admin</Badge>}
           {adminGroups.includes("doostaneh") && <Badge variant="green">Doostaneh Admin</Badge>}
           <Badge variant="gray">{pendingCount} Pending</Badge>
 

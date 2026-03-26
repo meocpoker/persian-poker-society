@@ -1,11 +1,10 @@
-// app/dashboard/sunday/sessions/[sessionId]/page.tsx
 import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import ConfirmSubmitButton from "./ConfirmSubmitButton";
-import PayoutSummary from "./PayoutSummary";
-import SundayAdminTableClient from "./SundayAdminTableClient";
+import ConfirmSubmitButton from "@/app/dashboard/sunday/sessions/[sessionId]/ConfirmSubmitButton";
+import PayoutSummary from "@/app/dashboard/sunday/sessions/[sessionId]/PayoutSummary";
+import SundayAdminTableClient from "@/app/dashboard/sunday/sessions/[sessionId]/SundayAdminTableClient";
 
 function Badge({
   label,
@@ -122,7 +121,7 @@ function PrimaryButton({
   );
 }
 
-export default async function SundaySessionPage(props: any) {
+export default async function FridaySessionPage(props: any) {
   const p = await Promise.resolve(props?.params);
 
   const sessionId =
@@ -155,7 +154,7 @@ export default async function SundaySessionPage(props: any) {
   if (error) {
     return (
       <div style={{ padding: 24 }}>
-        <h1>Sunday Session</h1>
+        <h1>Friday Session</h1>
         <div style={{ color: "red" }}>{error.message}</div>
       </div>
     );
@@ -183,22 +182,22 @@ export default async function SundaySessionPage(props: any) {
   if (spErr) {
     return (
       <div style={{ padding: 24 }}>
-        <h1>Sunday Session</h1>
+        <h1>Friday Session</h1>
         <div style={{ color: "red" }}>{spErr.message}</div>
       </div>
     );
   }
 
-  const { data: sundayApprovedRaw, error: sagErr } = await supabase
+  const { data: fridayApprovedRaw, error: fagErr } = await supabase
     .from("player_registry_groups")
     .select("player_id")
-    .eq("group_key", "sunday");
+    .eq("group_key", "friday");
 
-  if (sagErr) {
+  if (fagErr) {
     return (
       <div style={{ padding: 24 }}>
-        <h1>Sunday Session</h1>
-        <div style={{ color: "red" }}>{sagErr.message}</div>
+        <h1>Friday Session</h1>
+        <div style={{ color: "red" }}>{fagErr.message}</div>
       </div>
     );
   }
@@ -211,7 +210,7 @@ export default async function SundaySessionPage(props: any) {
   if (eErr) {
     return (
       <div style={{ padding: 24 }}>
-        <h1>Sunday Session</h1>
+        <h1>Friday Session</h1>
         <div style={{ color: "red" }}>{eErr.message}</div>
       </div>
     );
@@ -221,7 +220,7 @@ export default async function SundaySessionPage(props: any) {
     .map((r: any) => r.player_id)
     .filter(Boolean);
 
-  const approvedPlayerIds = (sundayApprovedRaw ?? [])
+  const approvedPlayerIds = (fridayApprovedRaw ?? [])
     .map((r: any) => r.player_id)
     .filter(Boolean);
 
@@ -238,7 +237,7 @@ export default async function SundaySessionPage(props: any) {
     if (pErr) {
       return (
         <div style={{ padding: 24 }}>
-          <h1>Sunday Session</h1>
+          <h1>Friday Session</h1>
           <div style={{ color: "red" }}>{pErr.message}</div>
         </div>
       );
@@ -300,13 +299,13 @@ export default async function SundaySessionPage(props: any) {
 
   return (
     <div
-  style={{
-    width: "100%",
-    minHeight: "100vh",
-    background: "linear-gradient(180deg, #FAF6EF 0%, #F7F1E7 100%)",
-    padding: 24,
-  }}
->
+      style={{
+        width: "100%",
+        minHeight: "100vh",
+        background: "linear-gradient(180deg, #FAF6EF 0%, #F7F1E7 100%)",
+        padding: 24,
+      }}
+    >
       <div style={{ maxWidth: 1180, margin: "0 auto" }}>
         <div
           style={{
@@ -348,7 +347,7 @@ export default async function SundaySessionPage(props: any) {
                   color: "#17342D",
                 }}
               >
-                Sunday Session
+                Friday Session
               </h1>
 
               <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -363,10 +362,10 @@ export default async function SundaySessionPage(props: any) {
 
               <div style={{ marginTop: 14, display: "flex", gap: 16, flexWrap: "wrap" }}>
                 <Link
-                  href="/dashboard/sunday"
+                  href="/dashboard/friday"
                   style={{ color: "#1F7A63", fontWeight: 800, textDecoration: "none" }}
                 >
-                  ← Back to Sunday
+                  ← Back to Friday
                 </Link>
 
                 <Link
@@ -386,7 +385,7 @@ export default async function SundaySessionPage(props: any) {
                 <div style={{ display: "grid", gap: 10 }}>
                   {(lifecycle as any)?.can_lock && (
                     <form
-                      action={`/dashboard/sunday/sessions/${sessionId}/lock`}
+                      action={`/dashboard/friday/sessions/${sessionId}/lock`}
                       method="post"
                     >
                       <PrimaryButton>Lock Session</PrimaryButton>
@@ -395,16 +394,16 @@ export default async function SundaySessionPage(props: any) {
 
                   {(lifecycle as any)?.can_unlock && (
                     <form
-                      action={`/dashboard/sunday/sessions/${sessionId}/unlock`}
+                      action={`/dashboard/friday/sessions/${sessionId}/unlock`}
                       method="post"
                     >
                       <PrimaryButton variant="danger">Unlock Session</PrimaryButton>
                     </form>
                   )}
 
-                  {(lifecycle as any)?.can_compute && (
+                  {(lifecycle as any)?.can_compute && !(lifecycle as any)?.already_computed && (
                     <form
-                      action={`/dashboard/sunday/sessions/${sessionId}/compute`}
+                      action={`/dashboard/friday/sessions/${sessionId}/compute`}
                       method="post"
                     >
                       <ConfirmSubmitButton
@@ -420,7 +419,7 @@ export default async function SundaySessionPage(props: any) {
                           fontSize: 14,
                         }}
                         confirmText={
-                          `Compute settlement for this Sunday session?\n\n` +
+                          `Compute settlement for this Friday session?\n\n` +
                           `Session: ${sessionId}\n\n` +
                           `This will post results to the ledger. Continue?`
                         }
@@ -432,7 +431,7 @@ export default async function SundaySessionPage(props: any) {
 
                   {statusLower === "computed" && (
                     <form
-                      action={`/dashboard/sunday/sessions/${sessionId}/email-results`}
+                      action={`/dashboard/friday/sessions/${sessionId}/email-results`}
                       method="post"
                     >
                       <ConfirmSubmitButton
@@ -448,7 +447,7 @@ export default async function SundaySessionPage(props: any) {
                           fontSize: 14,
                         }}
                         confirmText={
-                          `Email full results for this Sunday session to all players in this game?\n\n` +
+                          `Email full results for this Friday session to all players in this game?\n\n` +
                           `Session: ${sessionId}\n\n` +
                           `This will email only the players who played in this session. Continue?`
                         }
@@ -486,6 +485,7 @@ export default async function SundaySessionPage(props: any) {
           addablePlayers={addablePlayers}
           initialRows={tableRows}
           disabled={isLockedOrComputed}
+          groupKey="friday"
         />
 
         <PayoutSummary

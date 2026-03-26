@@ -5,7 +5,7 @@ import PageShell from "@/app/components/ui/PageShell";
 import SectionCard from "@/app/components/ui/SectionCard";
 import PrimaryButton from "@/app/components/ui/PrimaryButton";
 
-type ApprovedGroup = "doostaneh" | "sunday";
+type ApprovedGroup = "doostaneh" | "sunday" | "friday";
 
 export default async function ChoosePage() {
   const supabase = await createClient();
@@ -45,11 +45,7 @@ export default async function ChoosePage() {
     .eq("user_id", user.id);
 
   const adminGroups = Array.from(
-    new Set(
-      (adminRows ?? [])
-        .map((row: any) => row.group_key)
-        .filter(Boolean)
-    )
+    new Set((adminRows ?? []).map((row: any) => row.group_key).filter(Boolean))
   ) as ApprovedGroup[];
 
   const showAdmin = adminGroups.length > 0;
@@ -74,7 +70,9 @@ export default async function ChoosePage() {
     redirect(
       approved[0] === "doostaneh"
         ? "/dashboard/doostaneh"
-        : "/dashboard/sunday"
+        : approved[0] === "sunday"
+        ? "/dashboard/sunday"
+        : "/dashboard/friday"
     );
   }
 
@@ -107,6 +105,12 @@ export default async function ChoosePage() {
           {approved.includes("sunday") && (
             <PrimaryButton href="/dashboard/sunday" variant="gold">
               Sunday Poker Dashboard
+            </PrimaryButton>
+          )}
+
+          {approved.includes("friday") && (
+            <PrimaryButton href="/dashboard/friday" variant="gold">
+              Friday Poker Dashboard
             </PrimaryButton>
           )}
 

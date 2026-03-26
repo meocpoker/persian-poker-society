@@ -7,7 +7,7 @@ export default function StartSessionClient({
   groupKey,
   startsAt,
 }: {
-  groupKey: "sunday" | "doostaneh";
+  groupKey: "sunday" | "doostaneh" | "friday";
   startsAt: string;
 }) {
   const supabase = createClient();

@@ -6,7 +6,7 @@ import SectionCard from "@/app/components/ui/SectionCard";
 import PrimaryButton from "@/app/components/ui/PrimaryButton";
 import Badge from "@/app/components/ui/Badge";
 
-type GroupKey = "sunday" | "doostaneh";
+type GroupKey = "sunday" | "doostaneh" | "friday";
 
 export default async function DashboardRootPage() {
   const supabase = await createClient();
@@ -55,6 +55,7 @@ export default async function DashboardRootPage() {
       actions={
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           {groups.includes("sunday") && <Badge variant="gold">Sunday</Badge>}
+          {groups.includes("friday") && <Badge variant="gold">Friday</Badge>}
           {groups.includes("doostaneh") && <Badge variant="green">Doostaneh</Badge>}
 
           {adminGroups.length > 0 && (
@@ -125,6 +126,22 @@ export default async function DashboardRootPage() {
               </div>
               <PrimaryButton href="/dashboard/sunday" variant="gold">
                 Open Sunday Dashboard
+              </PrimaryButton>
+            </div>
+          </SectionCard>
+        )}
+
+        {groups.includes("friday") && (
+          <SectionCard
+            title="Friday Poker"
+            subtitle="Calendar, RSVPs, hosts, sessions, and settlement."
+          >
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ fontSize: 14, color: "#5F6B66" }}>
+                Access the Friday dashboard, manage attendance, and run cash sessions.
+              </div>
+              <PrimaryButton href="/dashboard/friday" variant="gold">
+                Open Friday Dashboard
               </PrimaryButton>
             </div>
           </SectionCard>

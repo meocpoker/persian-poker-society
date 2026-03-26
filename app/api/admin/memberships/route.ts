@@ -19,6 +19,107 @@ async function getAdminGroups(userId: string) {
     .filter(Boolean) as string[];
 }
 
+async function ensureRegistryMembership(
+  supabase: ReturnType<typeof createServiceClient>,
+  membershipId: string,
+  actorUserId: string
+) {
+  const { data: membershipRow, error: membershipRowError } = await supabase
+    .from("memberships")
+    .select("id, user_id, group_key, profiles(full_name,email)")
+    .eq("id", membershipId)
+    .maybeSingle();
+
+  if (membershipRowError) {
+    throw new Error(membershipRowError.message);
+  }
+
+  if (!membershipRow?.user_id || !membershipRow?.group_key) {
+    return;
+  }
+
+  const profile = Array.isArray((membershipRow as any).profiles)
+    ? (membershipRow as any).profiles[0]
+    : (membershipRow as any).profiles;
+
+  const email = String(profile?.email ?? "").trim().toLowerCase();
+  const fullName =
+    String(profile?.full_name ?? "").trim() ||
+    email ||
+    `Member ${String(membershipRow.user_id).slice(0, 8)}`;
+
+  if (!email) {
+    throw new Error("Approved membership is missing profile email.");
+  }
+
+  const { data: registryRow, error: registryError } = await supabase
+    .from("player_registry")
+    .select("id")
+    .ilike("email", email)
+    .maybeSingle();
+
+  if (registryError) {
+    throw new Error(registryError.message);
+  }
+
+  let playerId = registryRow?.id as string | undefined;
+
+  if (!playerId) {
+    const { data: insertedRegistry, error: insertRegistryError } = await supabase
+      .from("player_registry")
+      .insert({
+        full_name: fullName,
+        email,
+        created_by: actorUserId,
+      })
+      .select("id")
+      .single();
+
+    if (insertRegistryError) {
+      throw new Error(insertRegistryError.message);
+    }
+
+    playerId = insertedRegistry.id;
+  } else {
+    const { error: updateRegistryError } = await supabase
+      .from("player_registry")
+      .update({
+        full_name: fullName,
+        email,
+      })
+      .eq("id", playerId);
+
+    if (updateRegistryError) {
+      throw new Error(updateRegistryError.message);
+    }
+  }
+
+  const { data: existingGroupRow, error: existingGroupError } = await supabase
+    .from("player_registry_groups")
+    .select("id")
+    .eq("player_id", playerId)
+    .eq("group_key", membershipRow.group_key)
+    .maybeSingle();
+
+  if (existingGroupError) {
+    throw new Error(existingGroupError.message);
+  }
+
+  if (!existingGroupRow) {
+    const { error: insertGroupError } = await supabase
+      .from("player_registry_groups")
+      .insert({
+        player_id: playerId,
+        group_key: membershipRow.group_key,
+        created_by: actorUserId,
+      });
+
+    if (insertGroupError) {
+      throw new Error(insertGroupError.message);
+    }
+  }
+}
+
 export async function GET() {
   const supabaseUser = await createUserClient();
   const { data } = await supabaseUser.auth.getUser();
@@ -100,6 +201,17 @@ export async function POST(req: Request) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (status === "approved") {
+    try {
+      await ensureRegistryMembership(supabase, membershipId, user.id);
+    } catch (e: any) {
+      return NextResponse.json(
+        { error: e?.message || "Approved, but failed to create player registry link." },
+        { status: 500 }
+      );
+    }
   }
 
   return NextResponse.json({ ok: true });
