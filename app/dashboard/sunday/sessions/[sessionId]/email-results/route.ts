@@ -205,11 +205,10 @@ if (statusLower !== "computed" && !isAlreadyComputed) {
 
   const subject = `Sunday Game Results - ${sessionDate}`;
 
-  const textLines = [
-    `Sunday Game Results`,
-    ``,
-    `Session: ${sessionId}`,
-    `Date: ${sessionDate}`,
+const textLines = [
+  `Friday Game Results`,
+  ``,
+  `Date: ${sessionDate}`,
     ``,
     `Player Results:`,
     ...resultRows.map(
@@ -244,7 +243,6 @@ if (statusLower !== "computed" && !isAlreadyComputed) {
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;color:#17342D;line-height:1.5;">
       <h2 style="margin:0 0 12px 0;">Sunday Game Results</h2>
-      <p style="margin:0 0 6px 0;"><strong>Session:</strong> ${escapeHtml(sessionId)}</p>
       <p style="margin:0 0 18px 0;"><strong>Date:</strong> ${escapeHtml(sessionDate)}</p>
 
       <table style="border-collapse:collapse;width:100%;max-width:760px;">
