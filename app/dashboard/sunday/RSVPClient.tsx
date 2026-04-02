@@ -57,6 +57,13 @@ export default function RSVPClient({
 
       setStatus(nextStatus);
 
+      // Notify host of updated attendance — fire-and-forget, never blocks UI
+      fetch("/api/rsvp-notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_id: eventId, group_key: groupKey }),
+      }).catch(() => {});
+
       if (groupKey === "friday") {
         window.location.reload();
         return;
