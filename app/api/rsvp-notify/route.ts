@@ -93,39 +93,36 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true }); // host has no email, silent
   }
 
-  // Fetch all approved member user_ids for this group
-  const { data: memberRows } = await serviceSupabase
-    .from("memberships")
-    .select("user_id")
-    .eq("group_key", group_key)
-    .eq("status", "approved");
+  // Fetch all RSVPs (going and not_going) for this event
+  const { data: allRsvps } = await serviceSupabase
+    .from("rsvps")
+    .select("user_id, status")
+    .eq("event_id", event_id)
+    .in("status", ["going", "not_going"]);
 
-  const memberUserIds = (memberRows ?? []).map((m: any) => m.user_id).filter(Boolean);
+  const rsvpedUserIds = (allRsvps ?? []).map((r: any) => r.user_id).filter(Boolean);
 
-  console.log("[rsvp-notify] member user IDs found:", memberUserIds.length);
-
-  // Fetch profiles for those members
-  const { data: profileRows } = memberUserIds.length
-    ? await supabase
+  // Fetch profiles for all rsvp'd users
+  const { data: rsvpProfileRows } = rsvpedUserIds.length
+    ? await serviceSupabase
         .from("profiles")
         .select("id, full_name, email")
-        .in("id", memberUserIds)
+        .in("id", rsvpedUserIds)
     : { data: [] as any[] };
 
-  const memberMap = new Map<string, string>();
-  (profileRows ?? []).forEach((p: any) => {
-    memberMap.set(p.id, p.full_name || p.email || p.id);
+  const profileMap = new Map<string, string>();
+  (rsvpProfileRows ?? []).forEach((p: any) => {
+    profileMap.set(p.id, p.full_name || p.email || p.id);
   });
 
-  // Fetch all "going" RSVPs for this event
-  const { data: goingRsvps } = await serviceSupabase
-    .from("rsvps")
-    .select("user_id")
-    .eq("event_id", event_id)
-    .eq("status", "going");
+  const goingNames = (allRsvps ?? [])
+    .filter((r: any) => r.status === "going")
+    .map((r: any) => profileMap.get(r.user_id) || r.user_id)
+    .sort();
 
-  const goingNames = (goingRsvps ?? [])
-    .map((r: any) => memberMap.get(r.user_id) || r.user_id)
+  const notGoingNames = (allRsvps ?? [])
+    .filter((r: any) => r.status === "not_going")
+    .map((r: any) => profileMap.get(r.user_id) || r.user_id)
     .sort();
 
   // Check Resend is configured
@@ -145,34 +142,53 @@ export async function POST(req: Request) {
   const textBody =
     `Event: ${eventRow.title}\n` +
     `Date: ${eventDateFormatted}\n` +
-    `Players Coming: ${goingNames.length}\n\n` +
+    `Players Coming: ${goingNames.length}\n` +
+    `Players Not Coming: ${notGoingNames.length}\n\n` +
+    `--- IN ---\n` +
     (goingNames.length
       ? goingNames.map((n, i) => `${i + 1}. ${n}`).join("\n")
-      : "No one has RSVPed yet.");
+      : "No one has RSVPed in yet.") +
+    `\n\n--- OUT ---\n` +
+    (notGoingNames.length
+      ? notGoingNames.map((n, i) => `${i + 1}. ${n}`).join("\n")
+      : "No one has RSVPed out yet.");
 
-  const htmlRows = goingNames
-    .map(
-      (name, i) =>
-        `<tr><td style="padding:6px 10px;border:1px solid #d9d3c7;">${i + 1}</td>` +
-        `<td style="padding:6px 10px;border:1px solid #d9d3c7;">${escapeHtml(name)}</td></tr>`
-    )
-    .join("");
+  function makeHtmlRows(names: string[]) {
+    return names
+      .map(
+        (name, i) =>
+          `<tr><td style="padding:6px 10px;border:1px solid #d9d3c7;">${i + 1}</td>` +
+          `<td style="padding:6px 10px;border:1px solid #d9d3c7;">${escapeHtml(name)}</td></tr>`
+      )
+      .join("");
+  }
+
+  function makeHtmlTable(names: string[], headerBg: string, label: string, emptyMsg: string) {
+    return names.length
+      ? `<table style="border-collapse:collapse;width:100%;max-width:480px;">
+          <thead>
+            <tr>
+              <th colspan="2" style="padding:6px 10px;border:1px solid #d9d3c7;background:${headerBg};text-align:left;">${label} (${names.length})</th>
+            </tr>
+            <tr>
+              <th style="padding:6px 10px;border:1px solid #d9d3c7;background:#F8F3EA;text-align:left;">#</th>
+              <th style="padding:6px 10px;border:1px solid #d9d3c7;background:#F8F3EA;text-align:left;">Player</th>
+            </tr>
+          </thead>
+          <tbody>${makeHtmlRows(names)}</tbody>
+        </table>`
+      : `<p style="color:#6A746F;">${emptyMsg}</p>`;
+  }
 
   const htmlBody = `
     <div style="font-family:Arial,Helvetica,sans-serif;color:#17342D;line-height:1.5;">
       <h2 style="margin:0 0 8px 0;">${escapeHtml(eventRow.title)}</h2>
       <p style="margin:0 0 4px 0;"><strong>Date:</strong> ${escapeHtml(eventDateFormatted)}</p>
-      <p style="margin:0 0 18px 0;"><strong>Players Coming:</strong> ${goingNames.length}</p>
-      ${goingNames.length ? `
-      <table style="border-collapse:collapse;width:100%;max-width:480px;">
-        <thead>
-          <tr>
-            <th style="padding:6px 10px;border:1px solid #d9d3c7;background:#F8F3EA;text-align:left;">#</th>
-            <th style="padding:6px 10px;border:1px solid #d9d3c7;background:#F8F3EA;text-align:left;">Player</th>
-          </tr>
-        </thead>
-        <tbody>${htmlRows}</tbody>
-      </table>` : `<p style="color:#6A746F;">No one has RSVPed yet.</p>`}
+      <p style="margin:0 0 18px 0;"><strong>Players Coming:</strong> ${goingNames.length} &nbsp;|&nbsp; <strong>Players Not Coming:</strong> ${notGoingNames.length}</p>
+      ${makeHtmlTable(goingNames, "#d1fae5", "Players Coming", "No one has RSVPed in yet.")}
+      <div style="margin-top:20px;">
+        ${makeHtmlTable(notGoingNames, "#fee2e2", "Players Not Coming", "No one has RSVPed out yet.")}
+      </div>
     </div>`;
 
   await fetch("https://api.resend.com/emails", {
