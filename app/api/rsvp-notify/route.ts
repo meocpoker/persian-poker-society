@@ -50,6 +50,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true }); // silent
   }
 
+  console.log("[rsvp-notify] event:", eventRow.title, "| host_user_id:", eventRow.host_user_id);
+
   if (!eventRow.host_user_id) {
     return NextResponse.json({ ok: true }); // no host assigned, nothing to do
   }
@@ -64,8 +66,11 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   if (!hostMembership) {
+    console.log("[rsvp-notify] host membership NOT found for user:", eventRow.host_user_id);
     return NextResponse.json({ ok: true }); // host not an approved member, silent
   }
+
+  console.log("[rsvp-notify] host membership found");
 
   // Fetch host email directly from profiles
   const { data: hostProfile } = await supabase
@@ -75,6 +80,8 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   const hostEmail = hostProfile?.email ?? null;
+
+  console.log("[rsvp-notify] host email:", hostEmail);
 
   if (!hostEmail) {
     return NextResponse.json({ ok: true }); // host has no email, silent
@@ -88,6 +95,8 @@ export async function POST(req: Request) {
     .eq("status", "approved");
 
   const memberUserIds = (memberRows ?? []).map((m: any) => m.user_id).filter(Boolean);
+
+  console.log("[rsvp-notify] member user IDs found:", memberUserIds.length);
 
   // Fetch profiles for those members
   const { data: profileRows } = memberUserIds.length
@@ -118,8 +127,11 @@ export async function POST(req: Request) {
   const fromEmail = process.env.RESULTS_EMAIL_FROM || process.env.RESEND_FROM_EMAIL;
 
   if (!resendApiKey || !fromEmail) {
+    console.log("[rsvp-notify] Resend NOT configured — RESEND_API_KEY:", !!resendApiKey, "| fromEmail:", !!fromEmail);
     return NextResponse.json({ ok: true }); // not configured, silent
   }
+
+  console.log("[rsvp-notify] Resend configured — sending email to:", hostEmail);
 
   const eventDateFormatted = formatEventDate(eventRow.event_date);
   const subject = `${eventRow.title} - Updated Attendance List`;
