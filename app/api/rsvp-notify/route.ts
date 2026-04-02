@@ -54,32 +54,52 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true }); // no host assigned, nothing to do
   }
 
-  // Fetch host email
+  // Confirm host has an approved membership for this group
   const { data: hostMembership } = await supabase
     .from("memberships")
-    .select("user_id, profiles(full_name, email)")
+    .select("user_id")
     .eq("group_key", group_key)
     .eq("status", "approved")
     .eq("user_id", eventRow.host_user_id)
     .maybeSingle();
 
-  const hostEmail = (hostMembership as any)?.profiles?.email ?? null;
+  if (!hostMembership) {
+    return NextResponse.json({ ok: true }); // host not an approved member, silent
+  }
+
+  // Fetch host email directly from profiles
+  const { data: hostProfile } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("id", eventRow.host_user_id)
+    .maybeSingle();
+
+  const hostEmail = hostProfile?.email ?? null;
 
   if (!hostEmail) {
     return NextResponse.json({ ok: true }); // host has no email, silent
   }
 
-  // Fetch all approved members for name lookup
-  const { data: members } = await supabase
+  // Fetch all approved member user_ids for this group
+  const { data: memberRows } = await supabase
     .from("memberships")
-    .select("user_id, profiles(full_name, email)")
+    .select("user_id")
     .eq("group_key", group_key)
     .eq("status", "approved");
 
+  const memberUserIds = (memberRows ?? []).map((m: any) => m.user_id).filter(Boolean);
+
+  // Fetch profiles for those members
+  const { data: profileRows } = memberUserIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", memberUserIds)
+    : { data: [] as any[] };
+
   const memberMap = new Map<string, string>();
-  (members ?? []).forEach((m: any) => {
-    const name = m.profiles?.full_name || m.profiles?.email || m.user_id;
-    memberMap.set(m.user_id, name);
+  (profileRows ?? []).forEach((p: any) => {
+    memberMap.set(p.id, p.full_name || p.email || p.id);
   });
 
   // Fetch all "going" RSVPs for this event
