@@ -5,6 +5,7 @@ import PageShell from "@/app/components/ui/PageShell";
 import SectionCard from "@/app/components/ui/SectionCard";
 import PrimaryButton from "@/app/components/ui/PrimaryButton";
 import Badge from "@/app/components/ui/Badge";
+import JoinGroupClient from "./JoinGroupClient";
 
 type GroupKey = "sunday" | "doostaneh" | "friday";
 
@@ -34,6 +35,23 @@ export default async function DashboardRootPage() {
   const adminGroups = Array.from(
     new Set((adminRows ?? []).map((r: any) => r.group_key).filter(Boolean))
   ) as GroupKey[];
+
+  const { data: profileRow } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const fullName = profileRow?.full_name ?? user.email ?? "";
+
+  const { data: allMemberships } = await supabase
+    .from("memberships")
+    .select("group_key")
+    .eq("user_id", user.id);
+
+  const allGroupKeys = new Set((allMemberships ?? []).map((m: any) => m.group_key));
+  const allThree: GroupKey[] = ["doostaneh", "sunday", "friday"];
+  const joinableGroups = allThree.filter((g) => !allGroupKeys.has(g));
 
   let pendingCount = 0;
 
@@ -191,6 +209,15 @@ export default async function DashboardRootPage() {
               </Link>
             </div>
           </SectionCard>
+        )}
+
+        {joinableGroups.length > 0 && (
+          <JoinGroupClient
+            userId={user.id}
+            fullName={fullName}
+            email={user.email ?? ""}
+            joinableGroups={joinableGroups}
+          />
         )}
       </div>
     </PageShell>
