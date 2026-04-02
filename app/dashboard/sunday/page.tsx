@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import RSVPClient from "./RSVPClient";
 import EmailHostButton from "./EmailHostButton";
 import SetHostClient from "./SetHostClient";
+import DeleteEventClient from "./DeleteEventClient";
+import EventNoteClient from "./EventNoteClient";
 import MonthCalendarClient from "./MonthCalendarClient";
 import CardsToggleClient from "./CardsToggleClient";
 import AdminPublishClient from "./AdminPublishClient";
@@ -88,7 +90,7 @@ export default async function SundayDashboard() {
 
   const { data: events } = await supabase
     .from("events")
-    .select("id,title,event_date,status,group_id,host_user_id")
+    .select("id,title,event_date,status,group_id,host_user_id,notes")
     .eq("group_id", group.id)
     .order("event_date", { ascending: true });
 
@@ -417,6 +419,18 @@ export default async function SundayDashboard() {
                           <EmailHostButton eventId={e.id} />
                         </div>
                       )}
+
+                      {isAdmin && (
+                        <div style={{ marginTop: 12 }}>
+                          <DeleteEventClient eventId={e.id} />
+                        </div>
+                      )}
+
+                      <EventNoteClient
+                        eventId={e.id}
+                        initialNote={e.notes ?? null}
+                        isHost={e.host_user_id === user.id}
+                      />
                     </div>
                   );
                 })
