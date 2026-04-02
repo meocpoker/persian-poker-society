@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sendSessionResultsEmail } from "@/lib/sendSessionResultsEmail";
 
 function getSessionIdFromPath(pathname: string): string | null {
   const parts = pathname.split("/").filter(Boolean);
@@ -51,6 +52,11 @@ export async function POST(req: Request, ctx: any) {
   if (computeErr) {
     return NextResponse.json({ ok: false, error: computeErr.message }, { status: 400 });
   }
+
+  // Email results to all players — silent on any failure
+  try {
+    await sendSessionResultsEmail(supabase, sessionId, "friday");
+  } catch (_) {}
 
   const dest = new URL(`/dashboard/friday/sessions/${sessionId}`, req.url);
   const res = NextResponse.redirect(dest, { status: 303 });

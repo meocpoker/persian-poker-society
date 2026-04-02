@@ -1,6 +1,7 @@
 // app/dashboard/sunday/sessions/[sessionId]/compute/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sendSessionResultsEmail } from "@/lib/sendSessionResultsEmail";
 
 function getSessionIdFromPath(pathname: string): string | null {
   const parts = pathname.split("/").filter(Boolean);
@@ -53,6 +54,11 @@ export async function POST(req: Request, ctx: any) {
   if (computeErr) {
     return NextResponse.json({ ok: false, error: computeErr.message }, { status: 400 });
   }
+
+  // Email results to all players — silent on any failure
+  try {
+    await sendSessionResultsEmail(supabase, sessionId, "sunday");
+  } catch (_) {}
 
   // PRG pattern: redirect back to the session page (prevents back-button hydration weirdness)
   const dest = new URL(`/dashboard/sunday/sessions/${sessionId}`, req.url);
