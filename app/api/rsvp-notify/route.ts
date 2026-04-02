@@ -24,9 +24,12 @@ function formatEventDate(eventDate: string) {
 }
 
 export async function POST(req: Request) {
+  console.log("[rsvp-notify] function called");
+
   const supabase = await createClient();
 
   const { data: userData } = await supabase.auth.getUser();
+  console.log("[rsvp-notify] auth result:", !!userData?.user);
   if (!userData?.user) {
     return NextResponse.json({ ok: false, error: "Not authenticated" }, { status: 401 });
   }
