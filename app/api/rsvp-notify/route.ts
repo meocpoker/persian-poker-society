@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 function escapeHtml(value: string) {
   return value
@@ -34,6 +35,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Not authenticated" }, { status: 401 });
   }
 
+  const serviceSupabase = createServiceClient();
+
   const body = await req.json().catch(() => ({}));
   const event_id = String(body?.event_id || "").trim();
   const group_key = String(body?.group_key || "").trim();
@@ -43,7 +46,7 @@ export async function POST(req: Request) {
   }
 
   // Fetch the event
-  const { data: eventRow, error: eventErr } = await supabase
+  const { data: eventRow, error: eventErr } = await serviceSupabase
     .from("events")
     .select("id, title, event_date, host_user_id, group_id")
     .eq("id", event_id)
@@ -60,7 +63,7 @@ export async function POST(req: Request) {
   }
 
   // Confirm host has an approved membership for this group
-  const { data: hostMembership } = await supabase
+  const { data: hostMembership } = await serviceSupabase
     .from("memberships")
     .select("user_id")
     .eq("group_key", group_key)
@@ -76,7 +79,7 @@ export async function POST(req: Request) {
   console.log("[rsvp-notify] host membership found");
 
   // Fetch host email directly from profiles
-  const { data: hostProfile } = await supabase
+  const { data: hostProfile } = await serviceSupabase
     .from("profiles")
     .select("email")
     .eq("id", eventRow.host_user_id)
@@ -91,7 +94,7 @@ export async function POST(req: Request) {
   }
 
   // Fetch all approved member user_ids for this group
-  const { data: memberRows } = await supabase
+  const { data: memberRows } = await serviceSupabase
     .from("memberships")
     .select("user_id")
     .eq("group_key", group_key)
@@ -115,7 +118,7 @@ export async function POST(req: Request) {
   });
 
   // Fetch all "going" RSVPs for this event
-  const { data: goingRsvps } = await supabase
+  const { data: goingRsvps } = await serviceSupabase
     .from("rsvps")
     .select("user_id")
     .eq("event_id", event_id)
