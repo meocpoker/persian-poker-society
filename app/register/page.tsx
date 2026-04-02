@@ -33,7 +33,14 @@ export default function RegisterPage() {
       if (error) throw error;
 
       const userId = data.user?.id;
-      if (!userId) throw new Error("Signup succeeded but no user ID returned.");
+
+if (!userId) {
+  setSuccessMsg(
+    "Signup successful. Please check your email to confirm your account, then log in to complete your request."
+  );
+  setLoading(false);
+  return;
+}
 
       const groups: GroupKey[] =
         choice === "all_three"
