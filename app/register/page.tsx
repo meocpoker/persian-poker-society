@@ -25,39 +25,58 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      const userId = data.user?.id;
-
-if (!userId) {
-  setSuccessMsg(
-    "Signup successful. Please check your email to confirm your account, then log in to complete your request."
-  );
-  setLoading(false);
-  return;
-}
-
       const groups: GroupKey[] =
         choice === "all_three"
           ? ["doostaneh", "sunday", "friday"]
           : [choice];
 
+      let userId: string | null = null;
+
+      // Try to sign up first
+      const { data, error } = await supabase.auth.signUp({ email, password });
+
+      if (error) {
+        const msg = error.message.toLowerCase();
+        const isExisting =
+          msg.includes("already registered") ||
+          msg.includes("already exists") ||
+          msg.includes("database error finding user") ||
+          msg.includes("user already registered");
+
+        if (!isExisting) throw error;
+
+        // Email already exists — look up their existing user ID
+        const lookupRes = await fetch("/api/register/lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+
+        const lookupJson = await lookupRes.json().catch(() => ({}));
+
+        if (!lookupRes.ok || !lookupJson?.found || !lookupJson?.userId) {
+          throw new Error(
+            "An account with this email already exists. Please log in instead."
+          );
+        }
+
+        userId = lookupJson.userId;
+      } else {
+        userId = data.user?.id ?? null;
+      }
+
+      if (!userId) {
+        setSuccessMsg(
+          "Signup successful. Please check your email to confirm your account, then log in to complete your request."
+        );
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch("/api/register/request", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId,
-          fullName,
-          email,
-          groups,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, fullName, email, groups }),
       });
 
       const json = await res.json().catch(() => ({}));
@@ -117,10 +136,7 @@ if (!userId) {
           background: white;
           color: #0f172a;
         }
-        .field::placeholder {
-          color: #64748b;
-          opacity: 1;
-        }
+        .field::placeholder { color: #64748b; opacity: 1; }
         .field:focus {
           border-color: rgba(16,185,129,0.95);
           box-shadow: 0 0 0 4px rgba(16,185,129,0.18);
@@ -141,13 +157,8 @@ if (!userId) {
           font-size: 14px;
           font-weight: 600;
         }
-        .optionBox:hover {
-          border-color: #10b981;
-          background: rgba(16,185,129,0.05);
-        }
-        .optionBox input[type="radio"] {
-          accent-color: #0f766e;
-        }
+        .optionBox:hover { border-color: #10b981; background: rgba(16,185,129,0.05); }
+        .optionBox input[type="radio"] { accent-color: #0f766e; }
 
         .btn {
           width: 100%;
@@ -198,9 +209,7 @@ if (!userId) {
             required
           />
 
-          <label className="label" style={{ marginTop: 14 }}>
-            Email
-          </label>
+          <label className="label" style={{ marginTop: 14 }}>Email</label>
           <input
             className="field"
             type="email"
@@ -210,9 +219,7 @@ if (!userId) {
             required
           />
 
-          <label className="label" style={{ marginTop: 14 }}>
-            Password
-          </label>
+          <label className="label" style={{ marginTop: 14 }}>Password</label>
           <input
             className="field"
             type="password"
@@ -222,47 +229,25 @@ if (!userId) {
             required
           />
 
-          <label className="label" style={{ marginTop: 18 }}>
-            Registering for
-          </label>
+          <label className="label" style={{ marginTop: 18 }}>Registering for</label>
 
           <label className="optionBox">
-            <input
-              type="radio"
-              name="game"
-              checked={choice === "doostaneh"}
-              onChange={() => setChoice("doostaneh")}
-            />
+            <input type="radio" name="game" checked={choice === "doostaneh"} onChange={() => setChoice("doostaneh")} />
             <span>Doostaneh • دوستانه</span>
           </label>
 
           <label className="optionBox">
-            <input
-              type="radio"
-              name="game"
-              checked={choice === "sunday"}
-              onChange={() => setChoice("sunday")}
-            />
+            <input type="radio" name="game" checked={choice === "sunday"} onChange={() => setChoice("sunday")} />
             <span>Sunday Poker • پوکر یکشنبه</span>
           </label>
 
           <label className="optionBox">
-            <input
-              type="radio"
-              name="game"
-              checked={choice === "friday"}
-              onChange={() => setChoice("friday")}
-            />
+            <input type="radio" name="game" checked={choice === "friday"} onChange={() => setChoice("friday")} />
             <span>Friday • جمعه</span>
           </label>
 
           <label className="optionBox">
-            <input
-              type="radio"
-              name="game"
-              checked={choice === "all_three"}
-              onChange={() => setChoice("all_three")}
-            />
+            <input type="radio" name="game" checked={choice === "all_three"} onChange={() => setChoice("all_three")} />
             <span>All Three • هر سه</span>
           </label>
 

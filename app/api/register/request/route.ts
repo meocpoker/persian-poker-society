@@ -1,19 +1,29 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
 type GroupKey = "doostaneh" | "sunday" | "friday";
 
 export async function POST(req: Request) {
-  const supabase = createServiceClient();
+  const supabase = await createClient();
+  const service = createServiceClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
 
   const body = await req.json().catch(() => null);
 
-  const userId = String(body?.userId || "");
   const fullName = String(body?.fullName || "").trim();
-  const email = String(body?.email || "").trim().toLowerCase();
+  const email = String(user.email || "").trim().toLowerCase();
   const groups = Array.isArray(body?.groups) ? body.groups : [];
 
-  if (!userId || !fullName || !email || groups.length === 0) {
+  if (!email || groups.length === 0) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
@@ -30,13 +40,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No valid groups supplied" }, { status: 400 });
   }
 
-  const { error: profileError } = await supabase
+  const { error: profileError } = await service
     .from("profiles")
     .upsert(
       {
-        id: userId,
+        id: user.id,
         email,
-        full_name: fullName,
+        full_name: fullName || null,
       },
       { onConflict: "id" }
     );
@@ -45,37 +55,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: profileError.message }, { status: 400 });
   }
 
-  const insertRows = cleanGroups.map((group_key) => ({
-    user_id: userId,
+  const rows = cleanGroups.map((group_key) => ({
+    user_id: user.id,
     group_key,
     status: "pending",
   }));
 
- const { error: insertError } = await supabase
-  .from("memberships")
-  .upsert(insertRows, {
-    onConflict: "user_id,group_key",
-  });
+  const { error: membershipError } = await service
+    .from("memberships")
+    .upsert(rows, { onConflict: "user_id,group_key" });
 
-  if (insertError) {
-    const msg = String(insertError.message || "").toLowerCase();
-    const isDuplicate = msg.includes("duplicate key") || msg.includes("23505");
-
-    if (!isDuplicate) {
-      return NextResponse.json({ error: insertError.message }, { status: 400 });
-    }
-
-    for (const group_key of cleanGroups) {
-      const { error: updateError } = await supabase
-        .from("memberships")
-        .update({ status: "pending" })
-        .eq("user_id", userId)
-        .eq("group_key", group_key);
-
-      if (updateError) {
-        return NextResponse.json({ error: updateError.message }, { status: 400 });
-      }
-    }
+  if (membershipError) {
+    return NextResponse.json({ error: membershipError.message }, { status: 400 });
   }
 
   return NextResponse.json({ ok: true });
