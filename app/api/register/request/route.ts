@@ -51,9 +51,11 @@ export async function POST(req: Request) {
     status: "pending",
   }));
 
-  const { error: insertError } = await supabase
-    .from("memberships")
-    .insert(insertRows);
+ const { error: insertError } = await supabase
+  .from("memberships")
+  .upsert(insertRows, {
+    onConflict: "user_id,group_key",
+  });
 
   if (insertError) {
     const msg = String(insertError.message || "").toLowerCase();
