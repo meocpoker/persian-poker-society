@@ -111,7 +111,7 @@ export default async function DoostanehDashboard({
             </Link>
           )}
 
-          <CreateTournamentButton />
+          {isAdmin && <CreateTournamentButton />}
 <Link
   href="/dashboard/doostaneh/leaderboard"
   style={{
