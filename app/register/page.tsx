@@ -25,22 +25,36 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      let userId: string | undefined;
+
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (signUpError) {
+        // Email already registered — sign them in to get their existing userId
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) {
+          throw new Error(
+            "This email is already registered. Please use your existing password, or log in at the login page."
+          );
+        }
+        userId = signInData.user?.id;
+      } else {
+        userId = signUpData.user?.id;
+      }
 
-      const userId = data.user?.id;
-
-if (!userId) {
-  setSuccessMsg(
-    "Signup successful. Please check your email to confirm your account, then log in to complete your request."
-  );
-  setLoading(false);
-  return;
-}
+      if (!userId) {
+        setSuccessMsg(
+          "Signup successful. Please check your email to confirm your account, then log in to complete your request."
+        );
+        setLoading(false);
+        return;
+      }
 
       const groups: GroupKey[] =
         choice === "all_three"
