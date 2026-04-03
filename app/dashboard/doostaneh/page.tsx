@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import ComputeButton from "./ComputeButton";
 import AdminActivity from "./AdminActivity";
 import CreateTournamentButton from "./CreateTournamentButton";
+import PokerStarsMapClient from "./PokerStarsMapClient";
 
 export default async function DoostanehDashboard({
   searchParams,
@@ -338,6 +339,17 @@ export default async function DoostanehDashboard({
           <AdminActivity groupKey="doostaneh" />
         </SectionCard>
       </div>
+
+      {isAdmin && (
+        <div style={{ marginTop: 20 }}>
+          <SectionCard
+            title="PokerStars Username Mapping"
+            subtitle="Map each Doostaneh player to their PokerStars username."
+          >
+            <PokerStarsMapClient />
+          </SectionCard>
+        </div>
+      )}
     </PageShell>
   );
 }
