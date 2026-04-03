@@ -75,7 +75,7 @@ export default async function DoostanehLeaderboardPage() {
       };
     })
     .filter((row) => row.spent !== 0 || row.payout !== 0)
-    .sort((a, b) => b.net - a.net);
+    .sort((a, b) => b.payout - a.payout);
 
   const money = (value: number) =>
     new Intl.NumberFormat("en-US", {
@@ -101,7 +101,7 @@ export default async function DoostanehLeaderboardPage() {
         </Link>
       }
     >
-      <SectionCard title="Leaderboard" subtitle="Sorted by net winnings">
+      <SectionCard title="Leaderboard" subtitle="Sorted by total winnings">
         {leaderboard.length === 0 ? (
           <div
             style={{
@@ -146,7 +146,7 @@ export default async function DoostanehLeaderboardPage() {
                       fontWeight: 900,
                     }}
                   >
-                    Spent
+                    Total Spent
                   </th>
                   <th
                     style={{
@@ -156,7 +156,7 @@ export default async function DoostanehLeaderboardPage() {
                       fontWeight: 900,
                     }}
                   >
-                    Payout
+                    Total Winnings
                   </th>
                   <th
                     style={{
@@ -166,7 +166,7 @@ export default async function DoostanehLeaderboardPage() {
                       fontWeight: 900,
                     }}
                   >
-                    Net
+                    Net (Winnings - Spent)
                   </th>
                 </tr>
               </thead>
