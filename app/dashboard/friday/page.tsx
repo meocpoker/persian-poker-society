@@ -281,7 +281,7 @@ export default async function FridayDashboard() {
               myStatus: myStatusByEvent.get(e.id) ?? null,
             }))}
             groupKey="friday"
-            formatDate={formatFridayEventDate}
+
           />
         </SectionCard>
       </div>

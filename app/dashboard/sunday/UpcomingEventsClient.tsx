@@ -18,12 +18,23 @@ type GroupKey = "sunday" | "friday";
 export default function UpcomingEventsClient({
   events,
   groupKey,
-  formatDate,
 }: {
   events: EventRow[];
   groupKey: GroupKey;
-  formatDate: (d: string) => string;
 }) {
+  function formatDate(eventDate: string) {
+    const dateOnly = String(eventDate).slice(0, 10);
+    const [year, month, day] = dateOnly.split("-").map(Number);
+    const stableDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    const datePart = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    }).format(stableDate);
+    return groupKey === "friday" ? `${datePart}, 7:00 PM ET` : `${datePart}, 12:00 PM`;
+  }
+
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [myStatuses, setMyStatuses] = useState<Record<string, string | null>>(
     () => Object.fromEntries(events.map((e) => [e.id, e.myStatus]))
