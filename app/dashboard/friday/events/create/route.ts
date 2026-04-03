@@ -46,11 +46,12 @@ export async function POST(req: Request) {
   }
 
   const title = `Friday Poker - ${eventDate}`;
+  const eventDateTimestamp = `${eventDate}T23:00:00Z`;
 
   const { error: insertErr } = await supabase.from("events").insert({
     group_id: group.id,
     title,
-    event_date: eventDate,
+    event_date: eventDateTimestamp,
     status: "draft",
     host_user_id: null,
     buy_in_amount: 100,

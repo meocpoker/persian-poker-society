@@ -31,7 +31,7 @@ function formatFridayEventDate(eventDate: string) {
     day: "numeric",
   }).format(stableDate);
 
-  return `${datePart}, 12:00 PM`;
+  return `${datePart}, 7:00 PM ET`;
 }
 
 export default async function FridayDashboard() {
