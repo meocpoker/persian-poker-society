@@ -11,6 +11,7 @@ import CardsToggleClient from "../sunday/CardsToggleClient";
 import AdminPublishClient from "../sunday/AdminPublishClient";
 import StartSessionClient from "../sunday/StartSessionClient";
 import CreateFridayEventClient from "./CreateFridayEventClient";
+import UpcomingEventsClient from "../sunday/UpcomingEventsClient";
 import PageShell from "@/app/components/ui/PageShell";
 import SectionCard from "@/app/components/ui/SectionCard";
 import Badge from "@/app/components/ui/Badge";
@@ -269,33 +270,19 @@ export default async function FridayDashboard() {
           title="Next 4 Upcoming Events"
           subtitle="Closest Friday events visible to you."
         >
-          {!upcomingEvents.length ? (
-            <div style={{ fontSize: 14, color: "#6A746F" }}>No upcoming events.</div>
-          ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {upcomingEvents.map((e: any) => (
-                <div
-                  key={e.id}
-                  style={{
-                    border: "1px solid #E3E0D8",
-                    background: "#F8F3EA",
-                    borderRadius: 14,
-                    padding: 12,
-                  }}
-                >
-                  <div style={{ fontWeight: 900, color: "#17342D" }}>{e.title}</div>
-                  <div style={{ marginTop: 4, fontSize: 13, color: "#6A746F" }}>
-                    {formatFridayEventDate(e.event_date)}
-                  </div>
-                  <div style={{ marginTop: 8 }}>
-                    <Badge variant={e.status === "published" ? "green" : "gray"}>
-                      {e.status === "published" ? "Published" : String(e.status)}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <UpcomingEventsClient
+            events={upcomingEvents.map((e: any) => ({
+              id: e.id,
+              title: e.title,
+              event_date: e.event_date,
+              status: e.status,
+              goingCount: rsvpCounts.get(e.id)?.going ?? 0,
+              goingNames: goingNames.get(e.id) ?? [],
+              myStatus: myStatusByEvent.get(e.id) ?? null,
+            }))}
+            groupKey="friday"
+            formatDate={formatFridayEventDate}
+          />
         </SectionCard>
       </div>
 
