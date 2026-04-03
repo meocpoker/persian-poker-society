@@ -14,8 +14,24 @@ export default function CreateTournamentButton() {
     const mm = pad(now.getMinutes());
     return `${y}-${m}-${d}T${hh}:${mm}`;
   });
+  const [gameNumber, setGameNumber] = useState("");
+  const [loadingSuggestion, setLoadingSuggestion] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  async function openDialog() {
+    setOpen(true);
+    setErr(null);
+    setLoadingSuggestion(true);
+    try {
+      const res = await fetch("/api/doostaneh/tournaments/open");
+      const json = await res.json().catch(() => ({}));
+      if (json?.ok && json?.suggested != null) {
+        setGameNumber(String(json.suggested));
+      }
+    } catch {}
+    setLoadingSuggestion(false);
+  }
 
   async function onCreate() {
     setErr(null);
@@ -23,11 +39,14 @@ export default function CreateTournamentButton() {
 
     try {
       const startsAtIso = new Date(dt).toISOString();
+      const body: Record<string, any> = { starts_at: startsAtIso };
+      const trimmed = gameNumber.trim();
+      if (trimmed) body.game_number = trimmed;
 
       const res = await fetch("/api/doostaneh/tournaments/open", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ starts_at: startsAtIso }),
+        body: JSON.stringify(body),
       });
 
       const json = await res.json();
@@ -44,7 +63,7 @@ export default function CreateTournamentButton() {
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        onClick={openDialog}
         style={{
           padding: "12px 16px",
           borderRadius: 14,
@@ -133,6 +152,38 @@ export default function CreateTournamentButton() {
               />
             </div>
 
+            <div style={{ marginTop: 16 }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#5F6B66",
+                  marginBottom: 8,
+                }}
+              >
+                Game Number
+              </label>
+
+              <input
+                type="number"
+                value={gameNumber}
+                onChange={(e) => setGameNumber(e.target.value)}
+                disabled={loadingSuggestion || busy}
+                placeholder={loadingSuggestion ? "Loading…" : "e.g. 846"}
+                style={{
+                  width: "100%",
+                  padding: "12px 14px",
+                  borderRadius: 14,
+                  border: "1px solid #D9D3C7",
+                  background: "#F8F3EA",
+                  color: "#17342D",
+                  fontSize: 14,
+                  opacity: loadingSuggestion ? 0.6 : 1,
+                }}
+              />
+            </div>
+
             {err && (
               <div
                 style={{
@@ -174,7 +225,7 @@ export default function CreateTournamentButton() {
 
               <button
                 onClick={onCreate}
-                disabled={busy}
+                disabled={busy || loadingSuggestion}
                 style={{
                   padding: "11px 16px",
                   borderRadius: 14,
@@ -183,7 +234,7 @@ export default function CreateTournamentButton() {
                   color: "#FFFDF8",
                   fontWeight: 900,
                   cursor: "pointer",
-                  opacity: busy ? 0.6 : 1,
+                  opacity: busy || loadingSuggestion ? 0.6 : 1,
                 }}
               >
                 {busy ? "Creating..." : "Create Tournament"}
