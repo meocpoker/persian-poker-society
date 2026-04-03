@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import ComputeButton from "../../ComputeButton";
@@ -14,28 +14,11 @@ function Badge({
   tone?: "neutral" | "green" | "gold" | "red";
 }) {
   const tones: Record<string, React.CSSProperties> = {
-    neutral: {
-      border: "1px solid #D9D3C7",
-      background: "#F8F3EA",
-      color: "#4E5B55",
-    },
-    green: {
-      border: "1px solid #B9D7CF",
-      background: "#EDF7F4",
-      color: "#1F7A63",
-    },
-    gold: {
-      border: "1px solid #E5D2A1",
-      background: "#FBF6EA",
-      color: "#8A6A1F",
-    },
-    red: {
-      border: "1px solid #E9C8CF",
-      background: "#FDF0F2",
-      color: "#8B1E2D",
-    },
+    neutral: { border: "1px solid #D9D3C7", background: "#F8F3EA", color: "#4E5B55" },
+    green:   { border: "1px solid #B9D7CF", background: "#EDF7F4", color: "#1F7A63" },
+    gold:    { border: "1px solid #E5D2A1", background: "#FBF6EA", color: "#8A6A1F" },
+    red:     { border: "1px solid #E9C8CF", background: "#FDF0F2", color: "#8B1E2D" },
   };
-
   return (
     <span
       style={{
@@ -74,13 +57,9 @@ function SectionCard({
         boxShadow: "0 10px 30px rgba(31, 42, 55, 0.05)",
       }}
     >
-      <div style={{ fontSize: 18, fontWeight: 900, color: "#17342D" }}>
-        {title}
-      </div>
+      <div style={{ fontSize: 18, fontWeight: 900, color: "#17342D" }}>{title}</div>
       {subtitle ? (
-        <div style={{ fontSize: 13, color: "#6A746F", marginTop: 6 }}>
-          {subtitle}
-        </div>
+        <div style={{ fontSize: 13, color: "#6A746F", marginTop: 6 }}>{subtitle}</div>
       ) : null}
       <div style={{ marginTop: 16 }}>{children}</div>
     </div>
@@ -94,6 +73,7 @@ type Session = {
   starts_at: string | null;
   status: string | null;
   tournament_number: number | null;
+  external_game_id: string | null;
   charity_usd: number | null;
   doostaneh_winner_count: number | null;
 };
@@ -129,9 +109,7 @@ export default function DoostanehSessionPage() {
   const [entries, setEntries] = useState<EntryRow[]>([]);
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
   const [registry, setRegistry] = useState<RegistryPlayer[]>([]);
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string>("");
 
-  const [winnerCount, setWinnerCount] = useState<number>(3);
   const [winner1, setWinner1] = useState<string>("");
   const [winner2, setWinner2] = useState<string>("");
   const [winner3, setWinner3] = useState<string>("");
@@ -141,6 +119,8 @@ export default function DoostanehSessionPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  const prevCharityRef = useRef<number | null>(null);
+
   const isLockedOrComputed =
     session?.status === "locked" ||
     session?.status === "computed" ||
@@ -149,13 +129,11 @@ export default function DoostanehSessionPage() {
   async function refresh() {
     setErr(null);
     setLoading(true);
-
     try {
       const res = await fetch(`/api/doostaneh/sessions/${sessionId}/entry-state`, {
         cache: "no-store",
       });
       const j = await res.json();
-
       if (!j?.ok) throw new Error(j?.error || "load_failed");
 
       setSession(j.session);
@@ -163,14 +141,10 @@ export default function DoostanehSessionPage() {
       setEntries(j.entries || []);
       setLedger(j.ledger || []);
 
-      const wc = Number(j.session?.doostaneh_winner_count ?? 3);
-      setWinnerCount([2, 3, 4].includes(wc) ? wc : 3);
-
       const byPlace = new Map<number, string>();
       for (const p of (j.players || []) as SRPRow[]) {
         if (p.finish_place) byPlace.set(p.finish_place, p.player_id);
       }
-
       setWinner1(byPlace.get(1) ?? "");
       setWinner2(byPlace.get(2) ?? "");
       setWinner3(byPlace.get(3) ?? "");
@@ -198,11 +172,9 @@ export default function DoostanehSessionPage() {
 
   const byPlayer = useMemo(() => {
     const m = new Map<string, { buyin: number; rebuy: number; addon: number }>();
-
     for (const p of players) {
       m.set(p.player_id, { buyin: 0, rebuy: 0, addon: 0 });
     }
-
     for (const e of entries) {
       const pid = e.registry_player_id;
       if (!pid) continue;
@@ -212,23 +184,40 @@ export default function DoostanehSessionPage() {
       if (e.type === "rebuy") cur.rebuy += Number(e.amount_usd || 0);
       if (e.type === "addon") cur.addon += Number(e.amount_usd || 0);
     }
-
     return m;
   }, [players, entries]);
 
   const totals = useMemo(() => {
     let total = 0;
-
     for (const [, v] of byPlayer.entries()) {
       total += (v.buyin || 0) + (v.rebuy || 0) + (v.addon || 0);
     }
-
-    const suggestedCharity = total < 80 ? 10 : 20;
-    const charity = session?.charity_usd ?? suggestedCharity;
+    const charity = total < 80 ? 10 : 20;
     const prizePool = total - charity;
+    return { total, charity, prizePool };
+  }, [byPlayer]);
 
-    return { total, suggestedCharity, charity, prizePool };
-  }, [byPlayer, session?.charity_usd]);
+  // Auto-sync charity to DB whenever it changes (fire-and-forget)
+  useEffect(() => {
+    if (!sessionId || !session?.id || isLockedOrComputed) return;
+    if (prevCharityRef.current === totals.charity) return;
+    prevCharityRef.current = totals.charity;
+    fetch(`/api/doostaneh/sessions/${sessionId}/set-charity`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ charity_usd: totals.charity }),
+    }).catch(() => {});
+  }, [totals.charity, sessionId, session?.id, isLockedOrComputed]);
+
+  // Derive winner count from prize pool
+  const winnerCount = totals.prizePool <= 70 ? 2 : totals.prizePool <= 100 ? 3 : 4;
+
+  const payoutLabel =
+    winnerCount === 2
+      ? "2 winners: 65% / 35%"
+      : winnerCount === 3
+      ? "3 winners: 50% / 30% / 20%"
+      : "4 winners: 50% / 25% / 15% / 10%";
 
   const payoutRows = useMemo(() => {
     return ledger
@@ -239,17 +228,14 @@ export default function DoostanehSessionPage() {
   async function post(path: string, body: any) {
     setErr(null);
     setBusy(path);
-
     try {
       const res = await fetch(path, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body ?? {}),
       });
-
       const j = await res.json();
       if (!j?.ok) throw new Error(j?.error || "request_failed");
-
       await refresh();
     } catch (e: any) {
       setErr(e?.message || "request_failed");
@@ -258,50 +244,28 @@ export default function DoostanehSessionPage() {
     }
   }
 
-  async function addPlayer() {
-    if (!selectedPlayerId) return;
-    await post(`/api/doostaneh/sessions/${sessionId}/add-player`, {
-      player_id: selectedPlayerId,
-    });
-    setSelectedPlayerId("");
+  async function addPlayer(playerId: string) {
+    await post(`/api/doostaneh/sessions/${sessionId}/add-player`, { player_id: playerId });
   }
 
   async function removePlayer(playerId: string) {
-    await post(`/api/doostaneh/sessions/${sessionId}/remove-player`, {
-      player_id: playerId,
-    });
+    await post(`/api/doostaneh/sessions/${sessionId}/remove-player`, { player_id: playerId });
   }
 
   async function setRebuys(playerId: string, rebuys: number) {
-    await post(`/api/doostaneh/sessions/${sessionId}/set-rebuys`, {
-      player_id: playerId,
-      rebuys,
-    });
+    await post(`/api/doostaneh/sessions/${sessionId}/set-rebuys`, { player_id: playerId, rebuys });
   }
 
   async function setAddon(playerId: string, enabled: boolean) {
-    await post(`/api/doostaneh/sessions/${sessionId}/set-addon`, {
-      player_id: playerId,
-      enabled,
-    });
-  }
-
-  async function setCharity(charityUsd: number) {
-    await post(`/api/doostaneh/sessions/${sessionId}/set-charity`, {
-      charity_usd: charityUsd,
-    });
+    await post(`/api/doostaneh/sessions/${sessionId}/set-addon`, { player_id: playerId, enabled });
   }
 
   async function setPlace(place: number, playerId: string) {
     if (!playerId) return;
-    await post(`/api/doostaneh/sessions/${sessionId}/set-place`, {
-      player_id: playerId,
-      place,
-    });
+    await post(`/api/doostaneh/sessions/${sessionId}/set-place`, { player_id: playerId, place });
   }
 
   const playerIdsInSession = new Set(players.map((p) => p.player_id));
-  const addable = registry.filter((p) => !playerIdsInSession.has(p.id));
 
   const inSessionOptions = players
     .slice()
@@ -311,17 +275,19 @@ export default function DoostanehSessionPage() {
       )
     );
 
+  const sortedRegistry = useMemo(() => {
+    return [...registry].sort((a, b) =>
+      String(a.full_name ?? "").localeCompare(String(b.full_name ?? ""))
+    );
+  }, [registry]);
+
   const sessionSummaryRows = useMemo(() => {
     return inSessionOptions.map((p) => {
       const values = byPlayer.get(p.player_id) ?? { buyin: 0, rebuy: 0, addon: 0 };
       const spent = (values.buyin || 0) + (values.rebuy || 0) + (values.addon || 0);
-
       const payout = ledger
-        .filter(
-          (l) => l.txn_type === "payout" && l.registry_player_id === p.player_id
-        )
+        .filter((l) => l.txn_type === "payout" && l.registry_player_id === p.player_id)
         .reduce((sum, l) => sum + Number(l.delta_usd || 0), 0);
-
       return {
         playerId: p.player_id,
         fullName: p.player_registry?.full_name ?? "(no name)",
@@ -343,12 +309,22 @@ export default function DoostanehSessionPage() {
   const summaryTotals = useMemo(() => {
     const totalSpent = sessionSummaryRows.reduce((sum, row) => sum + row.spent, 0);
     const totalPayout = sessionSummaryRows.reduce((sum, row) => sum + row.payout, 0);
-
-    return {
-      totalSpent,
-      totalPayout,
-    };
+    return { totalSpent, totalPayout };
   }, [sessionSummaryRows]);
+
+  const cellStyle: React.CSSProperties = {
+    padding: "12px 10px",
+    borderBottom: "1px solid #F0EBE2",
+  };
+
+  const thStyle: React.CSSProperties = {
+    padding: "10px 10px",
+    borderBottom: "1px solid #E6E0D5",
+    fontSize: 12,
+    fontWeight: 800,
+    color: "#6A746F",
+    textAlign: "left",
+  };
 
   return (
     <div
@@ -359,6 +335,8 @@ export default function DoostanehSessionPage() {
       }}
     >
       <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+
+        {/* ── SECTION 1: HEADER ── */}
         <div
           style={{
             background: "#FFFCF7",
@@ -404,12 +382,15 @@ export default function DoostanehSessionPage() {
 
               <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <Badge label={`Session: ${sessionId?.slice(0, 8) ?? ""}`} />
+                {session?.external_game_id && (
+                  <Badge label={`Game: ${session.external_game_id}`} tone="gold" />
+                )}
                 {session?.tournament_number != null && (
-                  <Badge label={`Game #: ${session.tournament_number}`} tone="gold" />
+                  <Badge label={`#: ${session.tournament_number}`} tone="gold" />
                 )}
                 {session?.starts_at && (
                   <Badge
-                    label={`Starts: ${new Date(session.starts_at).toLocaleString()}`}
+                    label={new Date(session.starts_at).toLocaleString()}
                     tone="green"
                   />
                 )}
@@ -425,7 +406,6 @@ export default function DoostanehSessionPage() {
                 >
                   ← Back to Doostaneh
                 </Link>
-
                 <Link
                   href={`/dashboard/admin/audit?session=${sessionId}`}
                   style={{ color: "#1F7A63", fontWeight: 800, textDecoration: "none" }}
@@ -440,6 +420,20 @@ export default function DoostanehSessionPage() {
                 title="Session Actions"
                 subtitle="Lock, unlock, or compute payouts for this tournament."
               >
+                <div
+                  style={{
+                    marginBottom: 12,
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    background: "#F8F3EA",
+                    border: "1px solid #E3E0D8",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#6A746F",
+                  }}
+                >
+                  {payoutLabel}
+                </div>
                 <ComputeButton
                   sessionId={sessionId}
                   groupKey="doostaneh"
@@ -467,289 +461,255 @@ export default function DoostanehSessionPage() {
           </div>
         )}
 
+        {/* ── SECTION 2: PLAYER TABLE ── */}
         <div style={{ marginTop: 18 }}>
           <SectionCard
             title="Tournament Entry"
-            subtitle="Adding a player auto-posts the $5 buy-in. Rebuys can be 0, 1, or 2. Add-on is a one-time $5."
+            subtitle="Check 'Played' for each participant. Rebuys cost $5 each. Add-on is +$5."
           >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  width: "100%",
-                }}
-              >
-                <select
-                  value={selectedPlayerId}
-                  onChange={(e) => setSelectedPlayerId(e.target.value)}
-                  disabled={isLockedOrComputed || !!busy}
-                  style={{
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: "1px solid #D9D3C7",
-                    background: "#F8F3EA",
-                    color: "#17342D",
-                    minWidth: 260,
-                    fontSize: 14,
-                    opacity: isLockedOrComputed || busy ? 0.7 : 1,
-                  }}
-                >
-                  <option value="">Add player...</option>
-                  {addable.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.full_name ?? "(no name)"}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={addPlayer}
-                  disabled={!selectedPlayerId || !!busy || isLockedOrComputed}
-                  style={{
-                    padding: "12px 16px",
-                    borderRadius: 14,
-                    border: "1px solid #1F7A63",
-                    background: "#1F7A63",
-                    color: "#FFFDF8",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    opacity: !selectedPlayerId || busy || isLockedOrComputed ? 0.6 : 1,
-                  }}
-                >
-                  {busy?.includes("add-player") ? "Adding..." : "Add Player"}
-                </button>
-              </div>
-            </div>
-
-            <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <Badge label={`Total Collected: $${totals.total.toFixed(2)}`} tone="green" />
-              <Badge
-                label={`Suggested Charity: $${totals.suggestedCharity.toFixed(2)}`}
-                tone="gold"
-              />
-              <Badge label={`Charity: $${totals.charity.toFixed(2)}`} />
-              <Badge label={`Prize Pool: $${totals.prizePool.toFixed(2)}`} tone="green" />
-            </div>
-
-            <div
-              style={{
-                marginTop: 16,
-                display: "flex",
-                gap: 10,
-                alignItems: "center",
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ fontSize: 13, color: "#6A746F", fontWeight: 700 }}>
-                Set charity:
-              </div>
-              <input
-                type="number"
-                step="0.01"
-                defaultValue={totals.charity}
-                disabled={isLockedOrComputed || !!busy}
-                onBlur={(e) => {
-                  const v = Number(e.target.value);
-                  if (!Number.isNaN(v)) setCharity(v);
-                }}
-                style={{
-                  width: 150,
-                  padding: "11px 12px",
-                  borderRadius: 14,
-                  border: "1px solid #D9D3C7",
-                  background: "#F8F3EA",
-                  color: "#17342D",
-                  opacity: isLockedOrComputed || busy ? 0.7 : 1,
-                }}
-              />
-              <div style={{ fontSize: 12, color: "#7A7368" }}>
-                {isLockedOrComputed ? "Locked" : "Editable"}
-              </div>
-            </div>
-
-            <div style={{ marginTop: 18, overflowX: "auto" }}>
-              {loading ? (
-                <div style={{ fontSize: 14, color: "#6A746F" }}>Loading...</div>
-              ) : (
-                <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
-                  <thead>
-                    <tr style={{ textAlign: "left", fontSize: 12, color: "#6A746F" }}>
-                      <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
-                        Player
-                      </th>
-                      <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
-                        Buy-in
-                      </th>
-                      <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
-                        Rebuys
-                      </th>
-                      <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
-                        Add-on
-                      </th>
-                      <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
-                        Total
-                      </th>
-                      <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }} />
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...thStyle, paddingLeft: 4, width: 60 }}>Played</th>
+                    <th style={thStyle}>Player</th>
+                    <th style={thStyle}>Rebuys</th>
+                    <th style={{ ...thStyle, width: 80 }}>Add-on</th>
+                    <th style={{ ...thStyle, textAlign: "right", width: 80 }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={5} style={{ ...cellStyle, fontSize: 14, color: "#6A746F" }}>
+                        Loading...
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {inSessionOptions.map((p) => {
-                      const v = byPlayer.get(p.player_id) ?? { buyin: 0, rebuy: 0, addon: 0 };
+                  ) : sortedRegistry.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ ...cellStyle, fontSize: 14, color: "#6A746F" }}>
+                        No players in registry.
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedRegistry.map((player) => {
+                      const played = playerIdsInSession.has(player.id);
+                      const v = byPlayer.get(player.id) ?? { buyin: 0, rebuy: 0, addon: 0 };
                       const rebuyCount = Math.min(2, Math.max(0, Math.round((v.rebuy || 0) / 5)));
                       const hasAddon = (v.addon || 0) > 0;
-                      const total = (v.buyin || 0) + (v.rebuy || 0) + (v.addon || 0);
+                      const rowTotal = played
+                        ? (v.buyin || 0) + (v.rebuy || 0) + (v.addon || 0)
+                        : 0;
+                      const isBusyRow = !!busy;
+                      const controlsDisabled = !played || isBusyRow || isLockedOrComputed;
 
                       return (
-                        <tr key={p.player_id}>
+                        <tr
+                          key={player.id}
+                          style={{ background: played ? "#F4FAF7" : "transparent" }}
+                        >
+                          {/* Played checkbox */}
+                          <td style={{ ...cellStyle, paddingLeft: 4, textAlign: "center" }}>
+                            <input
+                              type="checkbox"
+                              checked={played}
+                              disabled={isBusyRow || isLockedOrComputed}
+                              onChange={(e) => {
+                                if (e.target.checked) addPlayer(player.id);
+                                else removePlayer(player.id);
+                              }}
+                              style={{
+                                width: 16,
+                                height: 16,
+                                cursor: isBusyRow || isLockedOrComputed ? "not-allowed" : "pointer",
+                                accentColor: "#1F7A63",
+                              }}
+                            />
+                          </td>
+
+                          {/* Player name */}
                           <td
                             style={{
-                              padding: "14px 10px",
-                              borderBottom: "1px solid #F0EBE2",
+                              ...cellStyle,
+                              fontWeight: played ? 900 : 400,
+                              color: played ? "#17342D" : "#9AA3A0",
+                            }}
+                          >
+                            {player.full_name ?? "(no name)"}
+                          </td>
+
+                          {/* Rebuys radio */}
+                          <td style={cellStyle}>
+                            <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                              {[0, 1, 2].map((n) => (
+                                <label
+                                  key={n}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    color: controlsDisabled ? "#C5CCC9" : "#17342D",
+                                    cursor: controlsDisabled ? "not-allowed" : "pointer",
+                                    userSelect: "none",
+                                  }}
+                                >
+                                  <input
+                                    type="radio"
+                                    name={`rebuys-${player.id}`}
+                                    value={n}
+                                    checked={rebuyCount === n}
+                                    disabled={controlsDisabled}
+                                    onChange={() => setRebuys(player.id, n)}
+                                    style={{
+                                      cursor: controlsDisabled ? "not-allowed" : "pointer",
+                                      accentColor: "#1F7A63",
+                                    }}
+                                  />
+                                  {n}
+                                </label>
+                              ))}
+                            </div>
+                          </td>
+
+                          {/* Add-on checkbox */}
+                          <td style={{ ...cellStyle, textAlign: "center" }}>
+                            <input
+                              type="checkbox"
+                              checked={hasAddon}
+                              disabled={controlsDisabled}
+                              onChange={(e) => setAddon(player.id, e.target.checked)}
+                              style={{
+                                width: 16,
+                                height: 16,
+                                cursor: controlsDisabled ? "not-allowed" : "pointer",
+                                accentColor: "#1F7A63",
+                              }}
+                            />
+                          </td>
+
+                          {/* Total */}
+                          <td
+                            style={{
+                              ...cellStyle,
+                              textAlign: "right",
                               fontWeight: 900,
-                              color: "#17342D",
+                              color: played ? "#17342D" : "#C5CCC9",
                             }}
                           >
-                            {p.player_registry?.full_name ?? "(no name)"}
-                          </td>
-                          <td
-                            style={{
-                              padding: "14px 10px",
-                              borderBottom: "1px solid #F0EBE2",
-                              color: "#4E5B55",
-                            }}
-                          >
-                            ${(v.buyin || 0).toFixed(2)}
-                          </td>
-                          <td style={{ padding: "14px 10px", borderBottom: "1px solid #F0EBE2" }}>
-                            <select
-                              value={String(rebuyCount)}
-                              onChange={(e) => setRebuys(p.player_id, Number(e.target.value))}
-                              disabled={!!busy || isLockedOrComputed}
-                              style={{
-                                padding: "9px 10px",
-                                borderRadius: 12,
-                                border: "1px solid #D9D3C7",
-                                background: "#F8F3EA",
-                                color: "#17342D",
-                                opacity: busy || isLockedOrComputed ? 0.7 : 1,
-                              }}
-                            >
-                              <option value="0">0</option>
-                              <option value="1">1</option>
-                              <option value="2">2</option>
-                            </select>
-                            <span style={{ marginLeft: 10, fontSize: 12, color: "#7A7368" }}>
-                              (${(v.rebuy || 0).toFixed(2)})
-                            </span>
-                          </td>
-                          <td style={{ padding: "14px 10px", borderBottom: "1px solid #F0EBE2" }}>
-                            <button
-                              onClick={() => setAddon(p.player_id, !hasAddon)}
-                              disabled={!!busy || isLockedOrComputed}
-                              style={{
-                                padding: "9px 12px",
-                                borderRadius: 12,
-                                border: hasAddon ? "1px solid #1F7A63" : "1px solid #D9D3C7",
-                                background: hasAddon ? "#1F7A63" : "#FFFDF8",
-                                color: hasAddon ? "#FFFDF8" : "#17342D",
-                                fontWeight: 900,
-                                cursor: "pointer",
-                                opacity: busy || isLockedOrComputed ? 0.6 : 1,
-                              }}
-                            >
-                              {hasAddon ? "Add-on ✓" : "Add add-on"}
-                            </button>
-                            <span style={{ marginLeft: 10, fontSize: 12, color: "#7A7368" }}>
-                              (${(v.addon || 0).toFixed(2)})
-                            </span>
-                          </td>
-                          <td
-                            style={{
-                              padding: "14px 10px",
-                              borderBottom: "1px solid #F0EBE2",
-                              fontWeight: 900,
-                              color: "#17342D",
-                            }}
-                          >
-                            ${total.toFixed(2)}
-                          </td>
-                          <td style={{ padding: "14px 10px", borderBottom: "1px solid #F0EBE2" }}>
-                            <button
-                              onClick={() => removePlayer(p.player_id)}
-                              disabled={!!busy || isLockedOrComputed}
-                              style={{
-                                padding: "9px 12px",
-                                borderRadius: 12,
-                                border: "1px solid #E4C7CD",
-                                background: "#FFF3F4",
-                                color: "#8B1E2D",
-                                fontWeight: 900,
-                                cursor: "pointer",
-                                opacity: busy || isLockedOrComputed ? 0.6 : 1,
-                              }}
-                            >
-                              Remove
-                            </button>
+                            {played ? `$${rowTotal.toFixed(2)}` : "—"}
                           </td>
                         </tr>
                       );
-                    })}
-                  </tbody>
-                </table>
-              )}
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Live totals */}
+            <div
+              style={{
+                marginTop: 16,
+                padding: "14px 18px",
+                borderRadius: 14,
+                background: "#F8F3EA",
+                border: "1px solid #E3E0D8",
+                display: "flex",
+                gap: 28,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: "#6A746F",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.8,
+                  }}
+                >
+                  Total Collected
+                </div>
+                <div
+                  style={{ fontSize: 22, fontWeight: 900, color: "#17342D", marginTop: 2 }}
+                >
+                  ${totals.total.toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: "#6A746F",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.8,
+                  }}
+                >
+                  Charity
+                </div>
+                <div
+                  style={{ fontSize: 22, fontWeight: 900, color: "#C89B3C", marginTop: 2 }}
+                >
+                  ${totals.charity.toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: "#6A746F",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.8,
+                  }}
+                >
+                  Prize Pool
+                </div>
+                <div
+                  style={{ fontSize: 22, fontWeight: 900, color: "#1F7A63", marginTop: 2 }}
+                >
+                  ${totals.prizePool.toFixed(2)}
+                </div>
+              </div>
             </div>
           </SectionCard>
         </div>
 
+        {/* ── SECTION 3: WINNERS ── */}
         <div style={{ marginTop: 18 }}>
           <SectionCard title="Winners" subtitle="Set finish places before computing payouts.">
             <div
               style={{
-                marginTop: 2,
-                display: "flex",
-                gap: 10,
-                alignItems: "center",
-                flexWrap: "wrap",
+                marginBottom: 16,
+                padding: "10px 14px",
+                borderRadius: 12,
+                background: "#F8F3EA",
+                border: "1px solid #E3E0D8",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#6A746F",
               }}
             >
-              <div style={{ fontSize: 13, color: "#6A746F", fontWeight: 700 }}>
-                # winners:
-              </div>
-              <select
-                value={String(winnerCount)}
-                onChange={(e) => setWinnerCount(Number(e.target.value))}
-                disabled={!!busy || isLockedOrComputed}
-                style={{
-                  padding: "9px 10px",
-                  borderRadius: 12,
-                  border: "1px solid #D9D3C7",
-                  background: "#F8F3EA",
-                  color: "#17342D",
-                  opacity: busy || isLockedOrComputed ? 0.7 : 1,
-                }}
-              >
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-              </select>
+              Prize Pool:{" "}
+              <strong style={{ color: "#1F7A63" }}>${totals.prizePool.toFixed(2)}</strong>
+              {" · "}
+              Auto split:{" "}
+              <strong style={{ color: "#17342D" }}>{payoutLabel}</strong>
             </div>
 
-            <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
+            <div style={{ display: "grid", gap: 12 }}>
+              {/* 1st place */}
               <div>
-                <div
-                  style={{ fontSize: 13, marginBottom: 6, fontWeight: 700, color: "#4E5B55" }}
-                >
+                <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700, color: "#4E5B55" }}>
                   1st place
                 </div>
                 <select
                   value={winner1}
-                  onChange={(e) => {
-                    setWinner1(e.target.value);
-                    setPlace(1, e.target.value);
-                  }}
+                  onChange={(e) => { setWinner1(e.target.value); setPlace(1, e.target.value); }}
                   disabled={!!busy || isLockedOrComputed}
                   style={{
                     width: "100%",
@@ -758,6 +718,7 @@ export default function DoostanehSessionPage() {
                     border: "1px solid #D9D3C7",
                     background: "#F8F3EA",
                     color: "#17342D",
+                    fontSize: 14,
                     opacity: busy || isLockedOrComputed ? 0.7 : 1,
                   }}
                 >
@@ -770,18 +731,14 @@ export default function DoostanehSessionPage() {
                 </select>
               </div>
 
+              {/* 2nd place */}
               <div>
-                <div
-                  style={{ fontSize: 13, marginBottom: 6, fontWeight: 700, color: "#4E5B55" }}
-                >
+                <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700, color: "#4E5B55" }}>
                   2nd place
                 </div>
                 <select
                   value={winner2}
-                  onChange={(e) => {
-                    setWinner2(e.target.value);
-                    setPlace(2, e.target.value);
-                  }}
+                  onChange={(e) => { setWinner2(e.target.value); setPlace(2, e.target.value); }}
                   disabled={!!busy || isLockedOrComputed}
                   style={{
                     width: "100%",
@@ -790,6 +747,7 @@ export default function DoostanehSessionPage() {
                     border: "1px solid #D9D3C7",
                     background: "#F8F3EA",
                     color: "#17342D",
+                    fontSize: 14,
                     opacity: busy || isLockedOrComputed ? 0.7 : 1,
                   }}
                 >
@@ -802,19 +760,15 @@ export default function DoostanehSessionPage() {
                 </select>
               </div>
 
+              {/* 3rd place — shown when prize pool > $70 */}
               {winnerCount >= 3 && (
                 <div>
-                  <div
-                    style={{ fontSize: 13, marginBottom: 6, fontWeight: 700, color: "#4E5B55" }}
-                  >
+                  <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700, color: "#4E5B55" }}>
                     3rd place
                   </div>
                   <select
                     value={winner3}
-                    onChange={(e) => {
-                      setWinner3(e.target.value);
-                      setPlace(3, e.target.value);
-                    }}
+                    onChange={(e) => { setWinner3(e.target.value); setPlace(3, e.target.value); }}
                     disabled={!!busy || isLockedOrComputed}
                     style={{
                       width: "100%",
@@ -823,6 +777,7 @@ export default function DoostanehSessionPage() {
                       border: "1px solid #D9D3C7",
                       background: "#F8F3EA",
                       color: "#17342D",
+                      fontSize: 14,
                       opacity: busy || isLockedOrComputed ? 0.7 : 1,
                     }}
                   >
@@ -836,19 +791,15 @@ export default function DoostanehSessionPage() {
                 </div>
               )}
 
+              {/* 4th place — shown when prize pool > $100 */}
               {winnerCount >= 4 && (
                 <div>
-                  <div
-                    style={{ fontSize: 13, marginBottom: 6, fontWeight: 700, color: "#4E5B55" }}
-                  >
+                  <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 700, color: "#4E5B55" }}>
                     4th place
                   </div>
                   <select
                     value={winner4}
-                    onChange={(e) => {
-                      setWinner4(e.target.value);
-                      setPlace(4, e.target.value);
-                    }}
+                    onChange={(e) => { setWinner4(e.target.value); setPlace(4, e.target.value); }}
                     disabled={!!busy || isLockedOrComputed}
                     style={{
                       width: "100%",
@@ -857,6 +808,7 @@ export default function DoostanehSessionPage() {
                       border: "1px solid #D9D3C7",
                       background: "#F8F3EA",
                       color: "#17342D",
+                      fontSize: 14,
                       opacity: busy || isLockedOrComputed ? 0.7 : 1,
                     }}
                   >
@@ -873,6 +825,7 @@ export default function DoostanehSessionPage() {
           </SectionCard>
         </div>
 
+        {/* ── SESSION SUMMARY ── */}
         <div style={{ marginTop: 18 }}>
           <SectionCard
             title="Session Summary"
@@ -893,38 +846,22 @@ export default function DoostanehSessionPage() {
               <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
                 <thead>
                   <tr style={{ textAlign: "left", fontSize: 12, color: "#17342D" }}>
-                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
-                      Rank
-                    </th>
-                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
-                      Player
-                    </th>
-                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
-                      Spent
-                    </th>
-                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
-                      Payout
-                    </th>
-                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>
-                      Net
-                    </th>
+                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>Rank</th>
+                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>Player</th>
+                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>Spent</th>
+                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>Payout</th>
+                    <th style={{ padding: "12px 10px", borderBottom: "1px solid #E6E0D5" }}>Net</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rankedSessionSummaryRows.map((row, index) => {
-                    const rowTone =
-                      index === 0
-                        ? "#FBF6EA"
-                        : index === 1
-                        ? "#FCF9F2"
-                        : index === 2
-                        ? "#FFFCF7"
-                        : "transparent";
-
-                    const rankLabel = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}`;
+                    const rowBg =
+                      index === 0 ? "#FBF6EA" : index === 1 ? "#FCF9F2" : index === 2 ? "#FFFCF7" : "transparent";
+                    const rankLabel =
+                      index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}`;
 
                     return (
-                      <tr key={row.playerId} style={{ background: rowTone }}>
+                      <tr key={row.playerId} style={{ background: rowBg }}>
                         <td
                           style={{
                             padding: "14px 10px",
@@ -988,6 +925,7 @@ export default function DoostanehSessionPage() {
           </SectionCard>
         </div>
 
+        {/* ── TOURNAMENT RESULTS ── */}
         {payoutRows.length > 0 && (
           <div style={{ marginTop: 18 }}>
             <SectionCard
@@ -1030,14 +968,7 @@ export default function DoostanehSessionPage() {
                           {player?.player_registry?.full_name || "Player"}
                         </div>
                       </div>
-
-                      <div
-                        style={{
-                          fontWeight: 900,
-                          fontSize: 16,
-                          color: "#1F7A63",
-                        }}
-                      >
+                      <div style={{ fontWeight: 900, fontSize: 16, color: "#1F7A63" }}>
                         ${Number(l.delta_usd).toFixed(2)}
                       </div>
                     </div>
@@ -1048,6 +979,7 @@ export default function DoostanehSessionPage() {
           </div>
         )}
 
+        {/* ── ADMIN ACTIVITY ── */}
         <div style={{ marginTop: 18 }}>
           <SectionCard title="Admin Activity" subtitle="Recent system actions for this group.">
             <AdminActivity groupKey="doostaneh" />
