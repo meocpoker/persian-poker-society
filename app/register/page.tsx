@@ -114,9 +114,9 @@ export default function RegisterPage() {
           box-shadow: 0 22px 55px rgba(15,23,42,0.12);
           border: 1px solid rgba(15,23,42,0.08);
         }
-        .titleRow { text-align: center; margin-bottom: 6px; }
+        .titleRow { text-align: center; margin-bottom: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
         .titleEn { font-size: 30px; font-weight: 850; color: #0f172a; letter-spacing: -0.02em; }
-        .titleFa { font-size: 18px; font-weight: 650; color: #065f46; margin-left: 10px; direction: rtl; }
+        .titleFa { font-size: 18px; font-weight: 650; color: #065f46; direction: rtl; white-space: nowrap; }
         .subtitleRow { text-align: center; margin-bottom: 26px; }
         .subtitleEn { font-size: 15px; color: #334155; }
 
