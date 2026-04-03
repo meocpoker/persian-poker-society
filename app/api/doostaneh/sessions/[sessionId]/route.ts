@@ -28,9 +28,9 @@ export async function DELETE(
     return NextResponse.json({ ok: false, error: "Session not found" }, { status: 404 });
   }
 
-  if (sessionRow.status !== "open") {
+  if (!["open", "active", "locked"].includes(sessionRow.status)) {
     return NextResponse.json(
-      { ok: false, error: "Only open sessions can be deleted." },
+      { ok: false, error: "Only open, active, or locked sessions can be deleted." },
       { status: 403 }
     );
   }

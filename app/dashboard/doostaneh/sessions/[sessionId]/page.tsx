@@ -426,7 +426,7 @@ export default function DoostanehSessionPage() {
                   View in Audit Log
                 </Link>
 
-                {session?.status === "open" && (
+                {["open", "active", "locked"].includes(session?.status ?? "") && (
                   <button
                     type="button"
                     onClick={deleteTournament}
