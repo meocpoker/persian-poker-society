@@ -360,7 +360,7 @@ export default async function SundayDashboard() {
                         </div>
                       )}
 
-                      {isAdmin && (goingNames.get(e.id)?.length ?? 0) > 0 && (
+                      {(goingNames.get(e.id)?.length ?? 0) > 0 && (
                         <div
                           style={{
                             marginTop: 12,

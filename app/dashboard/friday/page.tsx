@@ -374,7 +374,7 @@ export default async function FridayDashboard() {
                         </div>
                       )}
 
-                      {isAdmin && (goingNames.get(e.id)?.length ?? 0) > 0 && (
+                      {(goingNames.get(e.id)?.length ?? 0) > 0 && (
                         <div
                           style={{
                             marginTop: 12,
