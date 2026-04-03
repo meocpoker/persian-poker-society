@@ -265,6 +265,19 @@ export default function DoostanehSessionPage() {
     await post(`/api/doostaneh/sessions/${sessionId}/set-place`, { player_id: playerId, place });
   }
 
+  async function deleteTournament() {
+    if (!window.confirm("Delete this tournament? This cannot be undone.")) return;
+    setBusy("delete");
+    const res = await fetch(`/api/doostaneh/sessions/${sessionId}`, { method: "DELETE" });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setErr(json?.error || "Failed to delete tournament.");
+      setBusy(null);
+      return;
+    }
+    window.location.href = "/dashboard/doostaneh";
+  }
+
   const playerIdsInSession = new Set(players.map((p) => p.player_id));
 
   const inSessionOptions = players
@@ -412,6 +425,27 @@ export default function DoostanehSessionPage() {
                 >
                   View in Audit Log
                 </Link>
+
+                {session?.status === "open" && (
+                  <button
+                    type="button"
+                    onClick={deleteTournament}
+                    disabled={!!busy}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 12,
+                      border: "1px solid #8B1E2D",
+                      background: "#FFF3F4",
+                      color: "#8B1E2D",
+                      fontWeight: 900,
+                      fontSize: 13,
+                      cursor: !!busy ? "not-allowed" : "pointer",
+                      opacity: !!busy ? 0.7 : 1,
+                    }}
+                  >
+                    {busy === "delete" ? "Deleting..." : "Delete Tournament"}
+                  </button>
+                )}
               </div>
             </div>
 
