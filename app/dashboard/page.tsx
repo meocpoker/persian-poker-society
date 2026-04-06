@@ -23,18 +23,22 @@ export default async function DashboardRootPage() {
     .eq("user_id", user.id)
     .eq("status", "approved");
 
-  const groups = Array.from(
-    new Set((memberships ?? []).map((m: any) => m.group_key))
-  ) as GroupKey[];
-
   const { data: adminRows } = await supabase
     .from("admins")
-    .select("group_key")
+    .select("group_key, role")
     .eq("user_id", user.id);
 
   const adminGroups = Array.from(
     new Set((adminRows ?? []).map((r: any) => r.group_key).filter(Boolean))
   ) as GroupKey[];
+
+  const isMaster = (adminRows ?? []).some((r: any) => r.role === "master");
+
+  const groups = isMaster
+    ? (["doostaneh", "sunday", "friday"] as GroupKey[])
+    : Array.from(
+        new Set((memberships ?? []).map((m: any) => m.group_key))
+      ) as GroupKey[];
 
   const { data: profileRow } = await supabase
     .from("profiles")
@@ -51,7 +55,7 @@ export default async function DashboardRootPage() {
 
   const allGroupKeys = new Set((allMemberships ?? []).map((m: any) => m.group_key));
   const allThree: GroupKey[] = ["doostaneh", "sunday", "friday"];
-  const joinableGroups = allThree.filter((g) => !allGroupKeys.has(g));
+  const joinableGroups = isMaster ? [] : allThree.filter((g) => !allGroupKeys.has(g));
 
   let pendingCount = 0;
 

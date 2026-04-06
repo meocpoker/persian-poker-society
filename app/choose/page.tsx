@@ -35,18 +35,22 @@ export default async function ChoosePage() {
     );
   }
 
-  const approved = Array.from(
-    new Set((memberships ?? []).map((m: any) => m.group_key))
-  ) as ApprovedGroup[];
-
   const { data: adminRows } = await supabase
     .from("admins")
-    .select("group_key")
+    .select("group_key, role")
     .eq("user_id", user.id);
 
   const adminGroups = Array.from(
     new Set((adminRows ?? []).map((row: any) => row.group_key).filter(Boolean))
   ) as ApprovedGroup[];
+
+  const isMaster = (adminRows ?? []).some((r: any) => r.role === "master");
+
+  const approved = isMaster
+    ? (["doostaneh", "sunday", "friday"] as ApprovedGroup[])
+    : Array.from(
+        new Set((memberships ?? []).map((m: any) => m.group_key))
+      ) as ApprovedGroup[];
 
   const showAdmin = adminGroups.length > 0;
 
