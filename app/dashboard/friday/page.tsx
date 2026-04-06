@@ -105,11 +105,29 @@ export default async function FridayDashboard() {
 
   const eventIds = visibleEvents.map((e: any) => e.id);
 
-  const { data: members } = await supabase
+  const { data: memberRows } = await supabase
     .from("memberships")
-    .select("user_id, profiles(full_name,email)")
+    .select("user_id")
     .eq("group_key", "friday")
     .eq("status", "approved");
+
+  const memberUserIds = (memberRows ?? []).map((m: any) => m.user_id).filter(Boolean);
+
+  const { data: profileRows } = memberUserIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", memberUserIds)
+    : { data: [] as any[] };
+
+  const profilesById = new Map(
+    (profileRows ?? []).map((p: any) => [p.id, { full_name: p.full_name ?? null, email: p.email ?? null }])
+  );
+
+  const members = (memberRows ?? []).map((m: any) => ({
+    user_id: m.user_id,
+    profiles: profilesById.get(m.user_id) ?? null,
+  }));
 
   const approvedCount = members?.length ?? 0;
 
