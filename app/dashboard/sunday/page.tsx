@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import RSVPClient from "./RSVPClient";
 import EmailHostButton from "./EmailHostButton";
 import SetHostClient from "./SetHostClient";
@@ -111,8 +112,10 @@ export default async function SundayDashboard() {
 
   const memberUserIds = (memberRows ?? []).map((m: any) => m.user_id).filter(Boolean);
 
+  const serviceSupabase = createServiceClient();
+
   const { data: profileRows } = memberUserIds.length
-    ? await supabase
+    ? await serviceSupabase
         .from("profiles")
         .select("id, full_name, email")
         .in("id", memberUserIds)
