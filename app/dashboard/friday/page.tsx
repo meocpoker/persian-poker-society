@@ -129,6 +129,8 @@ export default async function FridayDashboard() {
     profiles: profilesById.get(m.user_id) ?? null,
   }));
 
+  console.log("FRIDAY MEMBERS:", JSON.stringify(members));
+
   const approvedCount = members?.length ?? 0;
 
   const { data: myRsvps } = eventIds.length
