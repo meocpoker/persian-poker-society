@@ -54,21 +54,22 @@ export default async function FridayDashboard() {
     .filter((m: any) => m.status === "approved")
     .map((m: any) => m.group_key);
 
-  if (!approved.includes("friday")) {
+  const { data: adminRows } = await supabase
+    .from("admins")
+    .select("user_id, group_key, role")
+    .eq("user_id", user.id);
+
+  const isMaster = (adminRows ?? []).some((r: any) => r.role === "master");
+
+  if (!isMaster && !approved.includes("friday")) {
     if (approved.length === 1 && approved[0] === "doostaneh") redirect("/dashboard/doostaneh");
     if (approved.length === 1 && approved[0] === "sunday") redirect("/dashboard/sunday");
     if (approved.length >= 2) redirect("/choose");
     redirect("/login");
   }
 
-  const { data: adminRow } = await supabase
-    .from("admins")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .eq("group_key", "friday")
-    .maybeSingle();
-
-  const isAdmin = !!adminRow;
+  const hasFridayAdminRow = (adminRows ?? []).some((r: any) => r.group_key === "friday");
+  const isAdmin = isMaster || hasFridayAdminRow;
 
   let pendingCount = 0;
 

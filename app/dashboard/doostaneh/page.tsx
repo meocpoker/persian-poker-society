@@ -35,20 +35,21 @@ export default async function DoostanehDashboard({
     .filter((m: any) => m.status === "approved")
     .map((m: any) => m.group_key);
 
-  if (!approved.includes("doostaneh")) {
+  const { data: adminRows } = await supabase
+    .from("admins")
+    .select("user_id, group_key, role")
+    .eq("user_id", user.id);
+
+  const isMaster = (adminRows ?? []).some((r: any) => r.role === "master");
+
+  if (!isMaster && !approved.includes("doostaneh")) {
     if (approved.length === 1 && approved[0] === "sunday") redirect("/dashboard/sunday");
     if (approved.length >= 2) redirect("/choose");
     redirect("/login");
   }
 
-  const { data: adminRow } = await supabase
-    .from("admins")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .eq("group_key", "doostaneh")
-    .maybeSingle();
-
-  const isAdmin = !!adminRow;
+  const hasDoostanehAdminRow = (adminRows ?? []).some((r: any) => r.group_key === "doostaneh");
+  const isAdmin = isMaster || hasDoostanehAdminRow;
 
   let pendingCount = 0;
 

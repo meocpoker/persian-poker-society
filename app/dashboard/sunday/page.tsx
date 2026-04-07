@@ -53,20 +53,21 @@ export default async function SundayDashboard() {
     .filter((m: any) => m.status === "approved")
     .map((m: any) => m.group_key);
 
-  if (!approved.includes("sunday")) {
+  const { data: adminRows } = await supabase
+    .from("admins")
+    .select("user_id, group_key, role")
+    .eq("user_id", user.id);
+
+  const isMaster = (adminRows ?? []).some((r: any) => r.role === "master");
+
+  if (!isMaster && !approved.includes("sunday")) {
     if (approved.length === 1 && approved[0] === "doostaneh") redirect("/dashboard/doostaneh");
     if (approved.length >= 2) redirect("/choose");
     redirect("/login");
   }
 
-  const { data: adminRow } = await supabase
-    .from("admins")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .eq("group_key", "sunday")
-    .maybeSingle();
-
-  const isAdmin = !!adminRow;
+  const hasSundayAdminRow = (adminRows ?? []).some((r: any) => r.group_key === "sunday");
+  const isAdmin = isMaster || hasSundayAdminRow;
 
   let pendingCount = 0;
 
