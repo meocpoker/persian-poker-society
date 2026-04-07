@@ -16,18 +16,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing event_date" }, { status: 400 });
   }
 
-  const { data: adminRow, error: adminErr } = await supabase
+  const { data: adminRows, error: adminErr } = await supabase
     .from("admins")
-    .select("user_id")
-    .eq("user_id", userId)
-    .eq("group_key", "friday")
-    .maybeSingle();
+    .select("user_id, group_key, role")
+    .eq("user_id", userId);
 
   if (adminErr) {
     return NextResponse.json({ error: adminErr.message }, { status: 400 });
   }
 
-  if (!adminRow) {
+  const isMaster = (adminRows ?? []).some((r: any) => r.role === "master");
+  const hasFridayAdmin = (adminRows ?? []).some((r: any) => r.group_key === "friday");
+
+  if (!isMaster && !hasFridayAdmin) {
     return NextResponse.json({ error: "Not allowed" }, { status: 403 });
   }
 
