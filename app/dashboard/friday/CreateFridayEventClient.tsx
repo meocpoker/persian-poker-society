@@ -19,8 +19,6 @@ export default function CreateFridayEventClient() {
       error: userErr,
     } = await supabase.auth.getUser();
 
-    console.log("CREATE EVENT - userId:", user?.id);
-
     if (userErr || !user) {
       setBusy(false);
       alert("Not authenticated");

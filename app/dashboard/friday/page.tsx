@@ -101,8 +101,6 @@ export default async function FridayDashboard() {
 
   const allEvents = events ?? [];
 
-  console.log("FRIDAY DEBUG - isMaster:", isMaster, "hasFridayAdminRow:", hasFridayAdminRow, "isAdmin:", isAdmin, "allEvents count:", allEvents.length);
-
   const visibleEvents = isAdmin
     ? allEvents
     : allEvents.filter((e: any) => e.status === "published");
@@ -134,8 +132,6 @@ export default async function FridayDashboard() {
     user_id: m.user_id,
     profiles: profilesById.get(m.user_id) ?? null,
   }));
-
-  console.log("FRIDAY MEMBERS:", JSON.stringify(members));
 
   const approvedCount = members?.length ?? 0;
 
