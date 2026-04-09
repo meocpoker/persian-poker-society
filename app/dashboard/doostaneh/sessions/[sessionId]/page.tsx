@@ -548,9 +548,14 @@ export default function DoostanehSessionPage() {
                               type="checkbox"
                               checked={played}
                               disabled={isBusyRow || isLockedOrComputed}
-                              onChange={(e) => {
-                                if (e.target.checked) addPlayer(player.id);
-                                else removePlayer(player.id);
+                              onChange={async (e) => {
+                                if (e.target.checked) {
+                                  await addPlayer(player.id);
+                                  await setAddon(player.id, true);
+                                } else {
+                                  await setAddon(player.id, false);
+                                  await removePlayer(player.id);
+                                }
                               }}
                               style={{
                                 width: 16,
@@ -572,39 +577,27 @@ export default function DoostanehSessionPage() {
                             {player.full_name ?? "(no name)"}
                           </td>
 
-                          {/* Rebuys radio */}
+                          {/* Rebuys cycling button */}
                           <td style={cellStyle}>
-                            <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                              {[0, 1, 2].map((n) => (
-                                <label
-                                  key={n}
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 4,
-                                    fontSize: 13,
-                                    fontWeight: 700,
-                                    color: controlsDisabled ? "#C5CCC9" : "#17342D",
-                                    cursor: controlsDisabled ? "not-allowed" : "pointer",
-                                    userSelect: "none",
-                                  }}
-                                >
-                                  <input
-                                    type="radio"
-                                    name={`rebuys-${player.id}`}
-                                    value={n}
-                                    checked={rebuyCount === n}
-                                    disabled={controlsDisabled}
-                                    onChange={() => setRebuys(player.id, n)}
-                                    style={{
-                                      cursor: controlsDisabled ? "not-allowed" : "pointer",
-                                      accentColor: "#1F7A63",
-                                    }}
-                                  />
-                                  {n}
-                                </label>
-                              ))}
-                            </div>
+                            <button
+                              disabled={controlsDisabled}
+                              onClick={() => setRebuys(player.id, (rebuyCount + 1) % 3)}
+                              style={{
+                                padding: "5px 16px",
+                                borderRadius: 999,
+                                border: "none",
+                                fontWeight: 800,
+                                fontSize: 13,
+                                cursor: controlsDisabled ? "not-allowed" : "pointer",
+                                opacity: controlsDisabled ? 0.5 : 1,
+                                background:
+                                  rebuyCount === 0 ? "#E3E0D8" :
+                                  rebuyCount === 1 ? "#1F7A63" : "#D4762A",
+                                color: rebuyCount === 0 ? "#6A746F" : "#FFFFFF",
+                              }}
+                            >
+                              {rebuyCount}
+                            </button>
                           </td>
 
                           {/* Add-on checkbox */}
