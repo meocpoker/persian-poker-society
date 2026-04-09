@@ -839,20 +839,20 @@ export default function DoostanehSessionPage() {
             </div>
 
             {/* Save Changes button */}
-            {!isLockedOrComputed && (hasChanges || saveState === "saved") && (
+            {!isLockedOrComputed && (
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
                 <button
                   onClick={saveChanges}
-                  disabled={saveState === "saving"}
+                  disabled={saveState === "saving" || (!hasChanges && saveState !== "saved")}
                   style={{
                     padding: "10px 22px",
                     borderRadius: 12,
                     border: "none",
                     fontWeight: 800,
                     fontSize: 14,
-                    cursor: saveState === "saving" ? "not-allowed" : "pointer",
-                    background: saveState === "saved" && !hasChanges ? "#1F7A63" : "#86efac",
-                    color: saveState === "saved" && !hasChanges ? "#ffffff" : "#14532d",
+                    cursor: saveState === "saving" || (!hasChanges && saveState !== "saved") ? "not-allowed" : "pointer",
+                    background: saveState === "saved" && !hasChanges ? "#1F7A63" : hasChanges || saveState === "saving" ? "#86efac" : "#E3E0D8",
+                    color: saveState === "saved" && !hasChanges ? "#ffffff" : hasChanges || saveState === "saving" ? "#14532d" : "#9AA3A0",
                     opacity: saveState === "saving" ? 0.7 : 1,
                   }}
                 >
