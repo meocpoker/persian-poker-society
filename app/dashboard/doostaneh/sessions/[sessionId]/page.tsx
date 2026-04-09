@@ -119,6 +119,11 @@ export default function DoostanehSessionPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  const [draftPlayed, setDraftPlayed] = useState<Set<string>>(new Set());
+  const [draftRebuys, setDraftRebuys] = useState<Map<string, number>>(new Map());
+  const [draftAddon, setDraftAddon] = useState<Map<string, boolean>>(new Map());
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+
   const prevCharityRef = useRef<number | null>(null);
 
   const isLockedOrComputed =
@@ -140,6 +145,32 @@ export default function DoostanehSessionPage() {
       setPlayers(j.players || []);
       setEntries(j.entries || []);
       setLedger(j.ledger || []);
+
+      // Initialize draft state from server data
+      const serverPlayed = new Set<string>((j.players || []).map((p: any) => p.player_id as string));
+      const rebuyAmounts = new Map<string, number>();
+      const serverAddonMap = new Map<string, boolean>();
+      for (const pid of serverPlayed) {
+        rebuyAmounts.set(pid, 0);
+        serverAddonMap.set(pid, false);
+      }
+      for (const e of (j.entries || []) as EntryRow[]) {
+        const pid = e.registry_player_id;
+        if (!pid) continue;
+        if (e.type === "rebuy") {
+          rebuyAmounts.set(pid, (rebuyAmounts.get(pid) ?? 0) + Number(e.amount_usd || 0));
+        }
+        if (e.type === "addon") {
+          serverAddonMap.set(pid, Number(e.amount_usd || 0) > 0);
+        }
+      }
+      const serverRebuyMap = new Map<string, number>();
+      for (const [pid, amt] of rebuyAmounts) {
+        serverRebuyMap.set(pid, Math.min(2, Math.max(0, Math.round(amt / 5))));
+      }
+      setDraftPlayed(serverPlayed);
+      setDraftRebuys(serverRebuyMap);
+      setDraftAddon(serverAddonMap);
 
       const byPlace = new Map<number, string>();
       for (const p of (j.players || []) as SRPRow[]) {
@@ -187,15 +218,28 @@ export default function DoostanehSessionPage() {
     return m;
   }, [players, entries]);
 
+  // Draft-state version of byPlayer — drives live totals and table display
+  const draftByPlayer = useMemo(() => {
+    const m = new Map<string, { buyin: number; rebuy: number; addon: number }>();
+    for (const pid of draftPlayed) {
+      const server = byPlayer.get(pid);
+      const buyin = server?.buyin ?? 10; // default buy-in $10 for new players
+      const rebuys = draftRebuys.get(pid) ?? 0;
+      const addon = draftAddon.get(pid) ? 5 : 0;
+      m.set(pid, { buyin, rebuy: rebuys * 5, addon });
+    }
+    return m;
+  }, [draftPlayed, draftRebuys, draftAddon, byPlayer]);
+
   const totals = useMemo(() => {
     let total = 0;
-    for (const [, v] of byPlayer.entries()) {
+    for (const [, v] of draftByPlayer.entries()) {
       total += (v.buyin || 0) + (v.rebuy || 0) + (v.addon || 0);
     }
     const charity = total < 80 ? 10 : 20;
     const prizePool = total - charity;
     return { total, charity, prizePool };
-  }, [byPlayer]);
+  }, [draftByPlayer]);
 
   // Auto-sync charity to DB whenever it changes (fire-and-forget)
   useEffect(() => {
@@ -244,20 +288,93 @@ export default function DoostanehSessionPage() {
     }
   }
 
-  async function addPlayer(playerId: string) {
-    await post(`/api/doostaneh/sessions/${sessionId}/add-player`, { player_id: playerId });
+  function togglePlayed(playerId: string, checked: boolean) {
+    setSaveState("idle");
+    setDraftPlayed((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(playerId); else next.delete(playerId);
+      return next;
+    });
+    if (checked) {
+      setDraftAddon((prev) => new Map(prev).set(playerId, true));
+      setDraftRebuys((prev) => { const m = new Map(prev); if (!m.has(playerId)) m.set(playerId, 0); return m; });
+    } else {
+      setDraftAddon((prev) => { const m = new Map(prev); m.delete(playerId); return m; });
+      setDraftRebuys((prev) => { const m = new Map(prev); m.delete(playerId); return m; });
+    }
   }
 
-  async function removePlayer(playerId: string) {
-    await post(`/api/doostaneh/sessions/${sessionId}/remove-player`, { player_id: playerId });
+  function cycleRebuys(playerId: string) {
+    setSaveState("idle");
+    setDraftRebuys((prev) => {
+      const cur = prev.get(playerId) ?? 0;
+      return new Map(prev).set(playerId, (cur + 1) % 3);
+    });
   }
 
-  async function setRebuys(playerId: string, rebuys: number) {
-    await post(`/api/doostaneh/sessions/${sessionId}/set-rebuys`, { player_id: playerId, rebuys });
+  function toggleAddon(playerId: string, checked: boolean) {
+    setSaveState("idle");
+    setDraftAddon((prev) => new Map(prev).set(playerId, checked));
   }
 
-  async function setAddon(playerId: string, enabled: boolean) {
-    await post(`/api/doostaneh/sessions/${sessionId}/set-addon`, { player_id: playerId, enabled });
+  async function saveChanges() {
+    setSaveState("saving");
+    setErr(null);
+    try {
+      const apiPost = async (path: string, body: any) => {
+        const res = await fetch(path, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const j = await res.json();
+        if (!j?.ok) throw new Error(j?.error || "request_failed");
+      };
+
+      // Removed players
+      for (const pid of serverPlayedIds) {
+        if (!draftPlayed.has(pid)) {
+          await apiPost(`/api/doostaneh/sessions/${sessionId}/remove-player`, { player_id: pid });
+        }
+      }
+
+      // Added players
+      for (const pid of draftPlayed) {
+        if (!serverPlayedIds.has(pid)) {
+          await apiPost(`/api/doostaneh/sessions/${sessionId}/add-player`, { player_id: pid });
+        }
+      }
+
+      // Rebuys and addon for all draft players
+      for (const pid of draftPlayed) {
+        const serverRebuy = Math.min(2, Math.max(0, Math.round((byPlayer.get(pid)?.rebuy ?? 0) / 5)));
+        const draftRebuy = draftRebuys.get(pid) ?? 0;
+        if (draftRebuy !== serverRebuy || !serverPlayedIds.has(pid)) {
+          await apiPost(`/api/doostaneh/sessions/${sessionId}/set-rebuys`, { player_id: pid, rebuys: draftRebuy });
+        }
+
+        const serverAddon = (byPlayer.get(pid)?.addon ?? 0) > 0;
+        const draftAddonVal = draftAddon.get(pid) ?? false;
+        if (draftAddonVal !== serverAddon || !serverPlayedIds.has(pid)) {
+          await apiPost(`/api/doostaneh/sessions/${sessionId}/set-addon`, { player_id: pid, enabled: draftAddonVal });
+        }
+      }
+
+      // Silent refresh — update server state without resetting winners or showing spinner
+      const res = await fetch(`/api/doostaneh/sessions/${sessionId}/entry-state`, { cache: "no-store" });
+      const j = await res.json();
+      if (j?.ok) {
+        setSession(j.session);
+        setPlayers(j.players || []);
+        setEntries(j.entries || []);
+        setLedger(j.ledger || []);
+      }
+
+      setSaveState("saved");
+    } catch (e: any) {
+      setErr(e?.message || "save_failed");
+      setSaveState("idle");
+    }
   }
 
   async function setPlace(place: number, playerId: string) {
@@ -278,15 +395,41 @@ export default function DoostanehSessionPage() {
     window.location.href = "/dashboard/doostaneh";
   }
 
-  const playerIdsInSession = new Set(players.map((p) => p.player_id));
+  const serverPlayedIds = useMemo(() => new Set(players.map((p) => p.player_id)), [players]);
 
-  const inSessionOptions = players
-    .slice()
-    .sort((a, b) =>
-      String(a.player_registry?.full_name ?? "").localeCompare(
-        String(b.player_registry?.full_name ?? "")
-      )
-    );
+  const hasChanges = useMemo(() => {
+    // Check if set of played players changed
+    if (draftPlayed.size !== serverPlayedIds.size) return true;
+    for (const pid of draftPlayed) {
+      if (!serverPlayedIds.has(pid)) return true;
+    }
+    // Check rebuys/addon for existing players
+    for (const pid of serverPlayedIds) {
+      const serverRebuy = Math.min(2, Math.max(0, Math.round((byPlayer.get(pid)?.rebuy ?? 0) / 5)));
+      const serverAddon = (byPlayer.get(pid)?.addon ?? 0) > 0;
+      if ((draftRebuys.get(pid) ?? 0) !== serverRebuy) return true;
+      if ((draftAddon.get(pid) ?? false) !== serverAddon) return true;
+    }
+    return false;
+  }, [draftPlayed, draftRebuys, draftAddon, serverPlayedIds, byPlayer]);
+
+  const inSessionOptions = useMemo(() => {
+    return [...draftPlayed]
+      .map((pid) => {
+        const serverRow = players.find((p) => p.player_id === pid);
+        const reg = registry.find((r) => r.id === pid) ?? { id: pid, full_name: null, email: null };
+        return {
+          player_id: pid,
+          finish_place: serverRow?.finish_place ?? null,
+          player_registry: reg,
+        };
+      })
+      .sort((a, b) =>
+        String(a.player_registry?.full_name ?? "").localeCompare(
+          String(b.player_registry?.full_name ?? "")
+        )
+      );
+  }, [draftPlayed, players, registry]);
 
   const sortedRegistry = useMemo(() => {
     return [...registry].sort((a, b) =>
@@ -527,15 +670,14 @@ export default function DoostanehSessionPage() {
                     </tr>
                   ) : (
                     sortedRegistry.map((player) => {
-                      const played = playerIdsInSession.has(player.id);
-                      const v = byPlayer.get(player.id) ?? { buyin: 0, rebuy: 0, addon: 0 };
-                      const rebuyCount = Math.min(2, Math.max(0, Math.round((v.rebuy || 0) / 5)));
-                      const hasAddon = (v.addon || 0) > 0;
+                      const played = draftPlayed.has(player.id);
+                      const v = draftByPlayer.get(player.id) ?? { buyin: 0, rebuy: 0, addon: 0 };
+                      const rebuyCount = draftRebuys.get(player.id) ?? 0;
+                      const hasAddon = draftAddon.get(player.id) ?? false;
                       const rowTotal = played
                         ? (v.buyin || 0) + (v.rebuy || 0) + (v.addon || 0)
                         : 0;
-                      const isBusyRow = !!busy;
-                      const controlsDisabled = !played || isBusyRow || isLockedOrComputed;
+                      const controlsDisabled = !played || saveState === "saving" || isLockedOrComputed;
 
                       return (
                         <tr
@@ -547,20 +689,12 @@ export default function DoostanehSessionPage() {
                             <input
                               type="checkbox"
                               checked={played}
-                              disabled={isBusyRow || isLockedOrComputed}
-                              onChange={async (e) => {
-                                if (e.target.checked) {
-                                  await addPlayer(player.id);
-                                  await setAddon(player.id, true);
-                                } else {
-                                  await setAddon(player.id, false);
-                                  await removePlayer(player.id);
-                                }
-                              }}
+                              disabled={saveState === "saving" || isLockedOrComputed}
+                              onChange={(e) => togglePlayed(player.id, e.target.checked)}
                               style={{
                                 width: 16,
                                 height: 16,
-                                cursor: isBusyRow || isLockedOrComputed ? "not-allowed" : "pointer",
+                                cursor: saveState === "saving" || isLockedOrComputed ? "not-allowed" : "pointer",
                                 accentColor: "#1F7A63",
                               }}
                             />
@@ -581,7 +715,7 @@ export default function DoostanehSessionPage() {
                           <td style={cellStyle}>
                             <button
                               disabled={controlsDisabled}
-                              onClick={() => setRebuys(player.id, (rebuyCount + 1) % 3)}
+                              onClick={() => cycleRebuys(player.id)}
                               style={{
                                 padding: "5px 16px",
                                 borderRadius: 999,
@@ -606,7 +740,7 @@ export default function DoostanehSessionPage() {
                               type="checkbox"
                               checked={hasAddon}
                               disabled={controlsDisabled}
-                              onChange={(e) => setAddon(player.id, e.target.checked)}
+                              onChange={(e) => toggleAddon(player.id, e.target.checked)}
                               style={{
                                 width: 16,
                                 height: 16,
@@ -703,6 +837,29 @@ export default function DoostanehSessionPage() {
                 </div>
               </div>
             </div>
+
+            {/* Save Changes button */}
+            {!isLockedOrComputed && (hasChanges || saveState === "saved") && (
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+                <button
+                  onClick={saveChanges}
+                  disabled={saveState === "saving"}
+                  style={{
+                    padding: "10px 22px",
+                    borderRadius: 12,
+                    border: "none",
+                    fontWeight: 800,
+                    fontSize: 14,
+                    cursor: saveState === "saving" ? "not-allowed" : "pointer",
+                    background: saveState === "saved" && !hasChanges ? "#1F7A63" : "#86efac",
+                    color: saveState === "saved" && !hasChanges ? "#ffffff" : "#14532d",
+                    opacity: saveState === "saving" ? 0.7 : 1,
+                  }}
+                >
+                  {saveState === "saving" ? "Saving..." : saveState === "saved" && !hasChanges ? "Saved ✓" : "Save Changes"}
+                </button>
+              </div>
+            )}
           </SectionCard>
         </div>
 
