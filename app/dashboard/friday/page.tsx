@@ -97,7 +97,7 @@ export default async function FridayDashboard() {
     .from("events")
     .select("id,title,event_date,status,group_id,host_user_id,notes")
     .eq("group_id", group.id)
-    .order("event_date", { ascending: true });
+    .order("event_date", { ascending: false });
 
   const allEvents = events ?? [];
 

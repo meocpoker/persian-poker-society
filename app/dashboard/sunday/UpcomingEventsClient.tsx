@@ -111,6 +111,8 @@ export default function UpcomingEventsClient({
       body: JSON.stringify({ event_id: eventId, group_key: groupKey }),
     }).catch(() => {});
 
+    window.location.reload();
+
     setPending(null);
   }
 
