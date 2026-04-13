@@ -302,7 +302,7 @@ export default async function SundayDashboard() {
         </div>
       )}
 
-      <div
+      {!isAdmin && <div
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1.5fr) minmax(320px, 0.9fr)",
@@ -336,9 +336,9 @@ export default async function SundayDashboard() {
             groupKey="sunday"
           />
         </SectionCard>
-      </div>
+      </div>}
 
-      <div style={{ marginTop: 18 }}>
+      {!isAdmin && <div style={{ marginTop: 18 }}>
         <SectionCard
           title="Event List"
           subtitle="Use the toggle below to show all admin-created events."
@@ -497,7 +497,7 @@ export default async function SundayDashboard() {
             </div>
           </CardsToggleClient>
         </SectionCard>
-      </div>
+      </div>}
 
       {/* Past Results */}
       <div style={{ marginTop: 18 }}>
