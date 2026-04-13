@@ -11,7 +11,9 @@ import EventNoteClient from "./EventNoteClient";
 import MonthCalendarClient from "./MonthCalendarClient";
 import CardsToggleClient from "./CardsToggleClient";
 import AdminPublishClient from "./AdminPublishClient";
-import StartSessionClient from "./StartSessionClient";
+import CreateSundayEventClient from "./CreateSundayEventClient";
+import CloseEventClient from "./CloseEventClient";
+import PastResultsClient from "./PastResultsClient";
 import PageShell from "@/app/components/ui/PageShell";
 import SectionCard from "@/app/components/ui/SectionCard";
 import Badge from "@/app/components/ui/Badge";
@@ -95,7 +97,7 @@ export default async function SundayDashboard() {
 
   const { data: events } = await serviceSupabase
     .from("events")
-    .select("id,title,event_date,status,group_id,host_user_id,notes")
+    .select("id,title,event_date,status,group_id,host_user_id,host_address,host_phone,notes")
     .eq("group_id", group.id)
     .order("event_date", { ascending: false });
 
@@ -132,6 +134,33 @@ export default async function SundayDashboard() {
   }));
 
   const approvedCount = members?.length ?? 0;
+
+  // Build member options for CreateSundayEventClient
+  const memberOptions = (memberRows ?? []).map((m: any) => {
+    const profile = profilesById.get(m.user_id);
+    return {
+      user_id: m.user_id,
+      name: profile?.full_name || profile?.email || m.user_id,
+    };
+  });
+
+  // Build hostInfoMap: most recent address/phone per host user_id
+  const { data: hostEvents } = await serviceSupabase
+    .from("events")
+    .select("host_user_id, host_address, host_phone")
+    .eq("group_id", group.id)
+    .not("host_user_id", "is", null)
+    .order("event_date", { ascending: false });
+
+  const hostInfoMap: Record<string, { address: string | null; phone: string | null }> = {};
+  for (const ev of (hostEvents ?? []) as any[]) {
+    if (ev.host_user_id && !hostInfoMap[ev.host_user_id]) {
+      hostInfoMap[ev.host_user_id] = {
+        address: ev.host_address ?? null,
+        phone: ev.host_phone ?? null,
+      };
+    }
+  }
 
   const { data: myRsvps } = eventIds.length
     ? await supabase
@@ -258,6 +287,21 @@ export default async function SundayDashboard() {
         </div>
       }
     >
+      {/* Admin: Create Event */}
+      {isAdmin && (
+        <div style={{ marginBottom: 18 }}>
+          <SectionCard
+            title="Create Sunday Event"
+            subtitle="Schedule a date, optionally assign a host, and start a cash session."
+          >
+            <CreateSundayEventClient
+              members={memberOptions}
+              hostInfoMap={hostInfoMap}
+            />
+          </SectionCard>
+        </div>
+      )}
+
       <div
         style={{
           display: "grid",
@@ -290,7 +334,6 @@ export default async function SundayDashboard() {
               myStatus: myStatusByEvent.get(e.id) ?? null,
             }))}
             groupKey="sunday"
-
           />
         </SectionCard>
       </div>
@@ -337,11 +380,17 @@ export default async function SundayDashboard() {
                           <div style={{ marginTop: 4, fontSize: 13, color: "#6A746F" }}>
                             {formatSundayEventDate(e.event_date)}
                           </div>
+                          {e.host_address && (
+                            <div style={{ marginTop: 2, fontSize: 13, color: "#6A746F" }}>
+                              {e.host_address}
+                              {e.host_phone ? ` · ${e.host_phone}` : ""}
+                            </div>
+                          )}
                         </div>
 
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <Badge variant={e.status === "published" ? "green" : "gray"}>
-                            {e.status === "published" ? "Published" : String(e.status)}
+                          <Badge variant={e.status === "published" ? "green" : e.status === "closed" ? "gray" : "gray"}>
+                            {e.status === "published" ? "Published" : e.status === "closed" ? "Closed" : String(e.status)}
                           </Badge>
                           {myStatusByEvent.get(e.id) === "going" && (
                             <Badge variant="green">You are in</Badge>
@@ -355,12 +404,6 @@ export default async function SundayDashboard() {
                       {isAdmin && (
                         <div style={{ marginTop: 10 }}>
                           <AdminPublishClient eventId={e.id} currentStatus={e.status} />
-                        </div>
-                      )}
-
-                      {isAdmin && (
-                        <div style={{ marginTop: 10 }}>
-                          <StartSessionClient groupKey="sunday" startsAt={e.event_date} />
                         </div>
                       )}
 
@@ -429,6 +472,13 @@ export default async function SundayDashboard() {
                         </div>
                       )}
 
+                      {/* Validate & Close — only for non-closed events */}
+                      {isAdmin && e.status !== "closed" && (
+                        <div style={{ marginTop: 12 }}>
+                          <CloseEventClient eventId={e.id} />
+                        </div>
+                      )}
+
                       {isAdmin && (
                         <div style={{ marginTop: 12 }}>
                           <DeleteEventClient eventId={e.id} />
@@ -446,6 +496,16 @@ export default async function SundayDashboard() {
               )}
             </div>
           </CardsToggleClient>
+        </SectionCard>
+      </div>
+
+      {/* Past Results */}
+      <div style={{ marginTop: 18 }}>
+        <SectionCard
+          title="Past Results"
+          subtitle="Monthly cash game results for Sunday sessions."
+        >
+          <PastResultsClient />
         </SectionCard>
       </div>
     </PageShell>
