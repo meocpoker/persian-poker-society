@@ -91,7 +91,9 @@ export default async function SundayDashboard() {
     return <div style={{ padding: 24 }}>Group not found.</div>;
   }
 
-  const { data: events } = await supabase
+  const serviceSupabase = createServiceClient();
+
+  const { data: events } = await serviceSupabase
     .from("events")
     .select("id,title,event_date,status,group_id,host_user_id,notes")
     .eq("group_id", group.id)
@@ -105,15 +107,13 @@ export default async function SundayDashboard() {
 
   const eventIds = visibleEvents.map((e: any) => e.id);
 
-  const { data: memberRows } = await supabase
+  const { data: memberRows } = await serviceSupabase
     .from("memberships")
     .select("user_id")
     .eq("group_key", "sunday")
     .eq("status", "approved");
 
   const memberUserIds = (memberRows ?? []).map((m: any) => m.user_id).filter(Boolean);
-
-  const serviceSupabase = createServiceClient();
 
   const { data: profileRows } = memberUserIds.length
     ? await serviceSupabase
