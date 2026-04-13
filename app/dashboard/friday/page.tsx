@@ -107,15 +107,15 @@ export default async function FridayDashboard() {
 
   const eventIds = visibleEvents.map((e: any) => e.id);
 
-  const { data: memberRows } = await supabase
+  const serviceSupabase = createServiceClient();
+
+  const { data: memberRows } = await serviceSupabase
     .from("memberships")
     .select("user_id")
     .eq("group_key", "friday")
     .eq("status", "approved");
 
   const memberUserIds = (memberRows ?? []).map((m: any) => m.user_id).filter(Boolean);
-
-  const serviceSupabase = createServiceClient();
 
   const { data: profileRows } = memberUserIds.length
     ? await serviceSupabase
