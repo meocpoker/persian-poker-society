@@ -51,6 +51,7 @@ export async function POST(req: Request) {
       title,
       event_date: eventDate,
       status: "active",
+      buy_in_amount: 0,
       host_user_id: host_user_id || null,
       host_address: host_address || null,
       host_phone: host_phone || null,
