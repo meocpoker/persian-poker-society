@@ -193,6 +193,19 @@ export default async function SundayDashboard() {
        profilesById.get(nearestUpcoming.host_user_id)?.email || null)
     : null;
 
+  let activeSessionId: string | null = null;
+  if (nearestUpcoming) {
+    const { data: activeSession } = await serviceSupabase
+      .from("sessions")
+      .select("id")
+      .eq("group_key", "sunday")
+      .eq("starts_at", nearestUpcoming.event_date)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    activeSessionId = activeSession?.id ?? null;
+  }
+
   return (
     <PageShell
       eyebrow="Persian Men Society"
@@ -288,9 +301,35 @@ export default async function SundayDashboard() {
             subtitle={formatSundayEventDate(nearestUpcoming.event_date)}
           >
             <div style={{ display: "grid", gap: 10 }}>
-              <div style={{ fontSize: 13, color: "#6A746F" }}>
-                {goingNames.get(nearestUpcoming.id)?.length ?? 0} going
-              </div>
+              {(goingNames.get(nearestUpcoming.id)?.length ?? 0) > 0 ? (
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#6A746F", marginBottom: 6 }}>
+                    {goingNames.get(nearestUpcoming.id)!.length} going
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {goingNames.get(nearestUpcoming.id)!.map((name, idx) => (
+                      <span key={idx} style={{ padding: "4px 10px", borderRadius: 999, fontSize: 12,
+                        fontWeight: 700, background: "#FFFCF7", border: "1px solid #D9D3C7", color: "#17342D" }}>
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: 13, color: "#6A746F" }}>0 going</div>
+              )}
+              {activeSessionId && (
+                <div>
+                  <Link
+                    href={`/dashboard/sunday/sessions/${activeSessionId}`}
+                    style={{ display: "inline-flex", alignItems: "center", padding: "9px 14px",
+                      borderRadius: 12, border: "1px solid #1F7A63", background: "#EDF7F4",
+                      color: "#1F7A63", fontWeight: 900, fontSize: 13, textDecoration: "none" }}
+                  >
+                    Manage Session →
+                  </Link>
+                </div>
+              )}
               <CloseEventClient eventId={nearestUpcoming.id} />
             </div>
           </SectionCard>
