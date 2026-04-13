@@ -133,6 +133,14 @@ export default async function FridayDashboard() {
     profiles: profilesById.get(m.user_id) ?? null,
   }));
 
+  console.log("FRIDAY GOING NAMES DEBUG:", JSON.stringify(
+    members?.map((m: any) => ({
+      user_id: m.user_id,
+      full_name: m.profiles?.full_name,
+      email: m.profiles?.email
+    }))
+  ));
+
   const approvedCount = members?.length ?? 0;
 
   const { data: myRsvps } = eventIds.length
