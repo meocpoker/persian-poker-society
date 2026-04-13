@@ -3,21 +3,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import RSVPClient from "./RSVPClient";
-import EmailHostButton from "./EmailHostButton";
-import SetHostClient from "./SetHostClient";
-import UpcomingEventsClient from "./UpcomingEventsClient";
-import DeleteEventClient from "./DeleteEventClient";
-import EventNoteClient from "./EventNoteClient";
-import MonthCalendarClient from "./MonthCalendarClient";
-import CardsToggleClient from "./CardsToggleClient";
-import AdminPublishClient from "./AdminPublishClient";
 import CreateSundayEventClient from "./CreateSundayEventClient";
 import CloseEventClient from "./CloseEventClient";
 import PastResultsClient from "./PastResultsClient";
 import PageShell from "@/app/components/ui/PageShell";
 import SectionCard from "@/app/components/ui/SectionCard";
 import Badge from "@/app/components/ui/Badge";
-import MetricPill from "@/app/components/ui/MetricPill";
 
 type GroupKey = "doostaneh" | "sunday";
 
@@ -133,8 +124,6 @@ export default async function SundayDashboard() {
     profiles: profilesById.get(m.user_id) ?? null,
   }));
 
-  const approvedCount = members?.length ?? 0;
-
   // Build member options for CreateSundayEventClient
   const memberOptions = (memberRows ?? []).map((m: any) => {
     const profile = profilesById.get(m.user_id);
@@ -180,38 +169,29 @@ export default async function SundayDashboard() {
   const myStatusByEvent = new Map<string, string>();
   (myRsvps ?? []).forEach((r: any) => myStatusByEvent.set(r.event_id, r.status));
 
-  const rsvpCounts = new Map<string, { going: number; not_going: number }>();
   const goingNames = new Map<string, string[]>();
 
   (allRsvps ?? []).forEach((r: any) => {
-    if (!rsvpCounts.has(r.event_id)) {
-      rsvpCounts.set(r.event_id, { going: 0, not_going: 0 });
-      goingNames.set(r.event_id, []);
-    }
-
-    const entry = rsvpCounts.get(r.event_id)!;
-
+    if (!goingNames.has(r.event_id)) goingNames.set(r.event_id, []);
     if (r.status === "going") {
-      entry.going += 1;
-
       const member = members?.find((m: any) => m.user_id === r.user_id);
       const name =
         (member as any)?.profiles?.full_name ||
         (member as any)?.profiles?.email ||
         "Unnamed";
-
       goingNames.get(r.event_id)!.push(name);
-    }
-
-    if (r.status === "not_going") {
-      entry.not_going += 1;
     }
   });
 
   const now = new Date();
-  const upcomingEvents = visibleEvents
+  const nearestUpcoming = [...visibleEvents]
     .filter((e: any) => new Date(e.event_date).getTime() >= now.getTime())
-    .slice(0, 4);
+    .sort((a: any, b: any) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())[0] ?? null;
+
+  const activeHostName = nearestUpcoming?.host_user_id
+    ? (profilesById.get(nearestUpcoming.host_user_id)?.full_name ||
+       profilesById.get(nearestUpcoming.host_user_id)?.email || null)
+    : null;
 
   return (
     <PageShell
@@ -259,8 +239,6 @@ export default async function SundayDashboard() {
             </Link>
           )}
 
-          <Badge variant="gray">{visibleEvents.length} Events</Badge>
-
           <Link
             href="/dashboard"
             style={{ color: "#1F7A63", fontWeight: 800, textDecoration: "none" }}
@@ -302,202 +280,88 @@ export default async function SundayDashboard() {
         </div>
       )}
 
-      {!isAdmin && <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.5fr) minmax(320px, 0.9fr)",
-          gap: 18,
-        }}
-      >
-        <SectionCard title="Calendar" subtitle="Monthly view of Sunday events.">
-          <MonthCalendarClient
-            events={visibleEvents.map((e: any) => ({
-              id: e.id,
-              title: e.title,
-              event_date: e.event_date,
-            }))}
-          />
-        </SectionCard>
+      {/* Admin: Close active event */}
+      {isAdmin && nearestUpcoming && nearestUpcoming.status !== "closed" && (
+        <div style={{ marginBottom: 18 }}>
+          <SectionCard
+            title={nearestUpcoming.title}
+            subtitle={formatSundayEventDate(nearestUpcoming.event_date)}
+          >
+            <div style={{ display: "grid", gap: 10 }}>
+              <div style={{ fontSize: 13, color: "#6A746F" }}>
+                {goingNames.get(nearestUpcoming.id)?.length ?? 0} going
+              </div>
+              <CloseEventClient eventId={nearestUpcoming.id} />
+            </div>
+          </SectionCard>
+        </div>
+      )}
 
-        <SectionCard
-          title="Next 4 Upcoming Events"
-          subtitle="Closest Sunday events visible to you."
-        >
-          <UpcomingEventsClient
-            events={upcomingEvents.map((e: any) => ({
-              id: e.id,
-              title: e.title,
-              event_date: e.event_date,
-              status: e.status,
-              goingCount: rsvpCounts.get(e.id)?.going ?? 0,
-              goingNames: goingNames.get(e.id) ?? [],
-              myStatus: myStatusByEvent.get(e.id) ?? null,
-            }))}
-            groupKey="sunday"
-          />
-        </SectionCard>
-      </div>}
+      {/* Player view: active event */}
+      {!isAdmin && (
+        <div style={{ marginBottom: 18 }}>
+          <SectionCard title="Next Sunday Event" subtitle="Your upcoming poker session.">
+            {nearestUpcoming ? (
+              <div style={{ display: "grid", gap: 14 }}>
+                <div>
+                  <div style={{ fontWeight: 900, fontSize: 16, color: "#17342D" }}>
+                    {nearestUpcoming.title}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: 13, color: "#6A746F" }}>
+                    {formatSundayEventDate(nearestUpcoming.event_date)}
+                  </div>
+                  {activeHostName && (
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#17342D", fontWeight: 700 }}>
+                      Host: {activeHostName}
+                    </div>
+                  )}
+                  {nearestUpcoming.host_address && (
+                    <div style={{ marginTop: 2, fontSize: 13, color: "#6A746F" }}>
+                      {nearestUpcoming.host_address}
+                      {nearestUpcoming.host_phone ? ` · ${nearestUpcoming.host_phone}` : ""}
+                    </div>
+                  )}
+                </div>
 
-      {!isAdmin && <div style={{ marginTop: 18 }}>
-        <SectionCard
-          title="Event List"
-          subtitle="Use the toggle below to show all admin-created events."
-        >
-          <CardsToggleClient>
-            <div style={{ display: "grid", gap: 12 }}>
-              {!visibleEvents.length ? (
-                <div style={{ fontSize: 14, color: "#6A746F" }}>No events scheduled.</div>
-              ) : (
-                visibleEvents.map((e: any) => {
-                  const counts = rsvpCounts.get(e.id) ?? { going: 0, not_going: 0 };
-                  const totalResponses = counts.going + counts.not_going;
-                  const noResponse = approvedCount - totalResponses;
+                <RSVPClient
+                  eventId={nearestUpcoming.id}
+                  initialStatus={myStatusByEvent.get(nearestUpcoming.id) ?? null}
+                  eventStatus={nearestUpcoming.status}
+                  eventDate={nearestUpcoming.event_date}
+                />
 
-                  return (
-                    <div
-                      key={e.id}
-                      id={`event-${e.id}`}
-                      style={{
-                        border: "1px solid #E3E0D8",
-                        borderRadius: 16,
-                        padding: 16,
-                        background: "#FFFCF7",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "flex-start",
-                          justifyContent: "space-between",
-                          gap: 12,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontWeight: 900, fontSize: 16, color: "#17342D" }}>
-                            {e.title}
-                          </div>
-                          <div style={{ marginTop: 4, fontSize: 13, color: "#6A746F" }}>
-                            {formatSundayEventDate(e.event_date)}
-                          </div>
-                          {e.host_address && (
-                            <div style={{ marginTop: 2, fontSize: 13, color: "#6A746F" }}>
-                              {e.host_address}
-                              {e.host_phone ? ` · ${e.host_phone}` : ""}
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <Badge variant={e.status === "published" ? "green" : e.status === "closed" ? "gray" : "gray"}>
-                            {e.status === "published" ? "Published" : e.status === "closed" ? "Closed" : String(e.status)}
-                          </Badge>
-                          {myStatusByEvent.get(e.id) === "going" && (
-                            <Badge variant="green">You are in</Badge>
-                          )}
-                          {myStatusByEvent.get(e.id) === "not_going" && (
-                            <Badge variant="red">You are out</Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      {isAdmin && (
-                        <div style={{ marginTop: 10 }}>
-                          <AdminPublishClient eventId={e.id} currentStatus={e.status} />
-                        </div>
-                      )}
-
-                      <div style={{ marginTop: 10 }}>
-                        <RSVPClient
-                          eventId={e.id}
-                          initialStatus={myStatusByEvent.get(e.id) ?? null}
-                          eventStatus={e.status}
-                          eventDate={e.event_date}
-                        />
-                      </div>
-
-                      {isAdmin && (
-                        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <MetricPill label="IN" value={counts.going} color="green" />
-                          <MetricPill label="OUT" value={counts.not_going} color="red" />
-                          <MetricPill label="TOTAL" value={totalResponses} color="gray" />
-                          <MetricPill label="NO RESPONSE" value={noResponse} color="gray" />
-                        </div>
-                      )}
-
-                      {(goingNames.get(e.id)?.length ?? 0) > 0 && (
-                        <div
+                {(goingNames.get(nearestUpcoming.id)?.length ?? 0) > 0 && (
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#6A746F", marginBottom: 6 }}>
+                      Attending
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {goingNames.get(nearestUpcoming.id)!.map((name, idx) => (
+                        <span
+                          key={idx}
                           style={{
-                            marginTop: 12,
-                            border: "1px solid #E3E0D8",
-                            background: "#F8F3EA",
-                            borderRadius: 12,
-                            padding: 10,
+                            padding: "4px 10px",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            background: "#FFFCF7",
+                            border: "1px solid #D9D3C7",
+                            color: "#17342D",
                           }}
                         >
-                          <div style={{ fontSize: 12, fontWeight: 800, color: "#6A746F" }}>
-                            Going
-                          </div>
-                          <div style={{ marginTop: 6, display: "grid", gap: 4 }}>
-                            {goingNames.get(e.id)!.map((name, idx) => (
-                              <div
-                                key={idx}
-                                style={{ fontSize: 13, color: "#17342D", fontWeight: 700 }}
-                              >
-                                {name}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {isAdmin && members && (
-                        <div style={{ marginTop: 12 }}>
-                          <SetHostClient
-                            eventId={e.id}
-                            currentHostId={e.host_user_id ?? null}
-                            members={(members ?? []).map((m: any, idx: number) => ({
-                              user_id: m.user_id,
-                              full_name: m.profiles?.full_name ?? null,
-                              email: m.profiles?.email ?? null,
-                              _k: `${m.user_id}-${idx}`,
-                            }))}
-                          />
-                        </div>
-                      )}
-
-                      {isAdmin && (
-                        <div style={{ marginTop: 12 }}>
-                          <EmailHostButton eventId={e.id} />
-                        </div>
-                      )}
-
-                      {/* Validate & Close — only for non-closed events */}
-                      {isAdmin && e.status !== "closed" && (
-                        <div style={{ marginTop: 12 }}>
-                          <CloseEventClient eventId={e.id} />
-                        </div>
-                      )}
-
-                      {isAdmin && (
-                        <div style={{ marginTop: 12 }}>
-                          <DeleteEventClient eventId={e.id} />
-                        </div>
-                      )}
-
-                      <EventNoteClient
-                        eventId={e.id}
-                        initialNote={e.notes ?? null}
-                        isHost={e.host_user_id === user.id}
-                      />
+                          {name}
+                        </span>
+                      ))}
                     </div>
-                  );
-                })
-              )}
-            </div>
-          </CardsToggleClient>
-        </SectionCard>
-      </div>}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize: 14, color: "#6A746F" }}>No upcoming Sunday event scheduled.</div>
+            )}
+          </SectionCard>
+        </div>
+      )}
 
       {/* Past Results */}
       <div style={{ marginTop: 18 }}>
