@@ -281,7 +281,7 @@ export default async function SundayDashboard() {
       )}
 
       {/* Admin: Close active event */}
-      {isAdmin && nearestUpcoming && nearestUpcoming.status !== "closed" && (
+      {isAdmin && nearestUpcoming && nearestUpcoming.status === "published" && (
         <div style={{ marginBottom: 18 }}>
           <SectionCard
             title={nearestUpcoming.title}

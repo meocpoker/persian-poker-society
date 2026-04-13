@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       group_id: group.id,
       title,
       event_date: eventDate,
-      status: "active",
+      status: "published",
       buy_in_amount: 0,
       host_user_id: host_user_id || null,
       host_address: host_address || null,
