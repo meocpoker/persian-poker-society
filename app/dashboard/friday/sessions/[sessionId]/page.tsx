@@ -266,18 +266,6 @@ export default async function FridaySessionPage(props: any) {
 
   const sessionPlayerIdSet = new Set(sessionPlayerIds);
 
-  const addablePlayers = approvedPlayerIds
-    .filter((id: string) => !sessionPlayerIdSet.has(id))
-    .map((id: string) => playersById.get(id))
-    .filter(Boolean)
-    .sort((a: any, b: any) =>
-      String(a.full_name ?? "").localeCompare(String(b.full_name ?? ""))
-    )
-    .map((p: any) => ({
-      id: p.id as string,
-      full_name: p.full_name as string | null,
-    }));
-
   const tableRows = sessionPlayerIds
     .map((id: string) => {
       const player = playersById.get(id);
@@ -483,7 +471,6 @@ export default async function FridaySessionPage(props: any) {
 
         <SundayAdminTableClient
           sessionId={sessionId}
-          addablePlayers={addablePlayers}
           initialRows={tableRows}
           disabled={isLockedOrComputed}
           groupKey="friday"
