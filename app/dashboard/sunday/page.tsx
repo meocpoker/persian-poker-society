@@ -330,6 +330,12 @@ export default async function SundayDashboard() {
                   </Link>
                 </div>
               )}
+              <RSVPClient
+                eventId={nearestUpcoming.id}
+                initialStatus={myStatusByEvent.get(nearestUpcoming.id) ?? null}
+                eventStatus={nearestUpcoming.status}
+                eventDate={nearestUpcoming.event_date}
+              />
               <CloseEventClient eventId={nearestUpcoming.id} />
             </div>
           </SectionCard>
