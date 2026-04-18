@@ -17,16 +17,18 @@ export default function SundayAdminTableClient({
   initialRows,
   disabled,
   groupKey = "sunday",
+  initialCheckedIds,
 }: {
   sessionId: string;
   initialRows: TableRow[];
   disabled: boolean;
   groupKey?: GroupKey;
+  initialCheckedIds?: string[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [includedIds, setIncludedIds] = useState<Set<string>>(
-    () => new Set(initialRows.map((r) => r.playerId))
+    () => initialCheckedIds ? new Set(initialCheckedIds) : new Set(initialRows.map((r) => r.playerId))
   );
 
   const isFriday = groupKey === "friday";

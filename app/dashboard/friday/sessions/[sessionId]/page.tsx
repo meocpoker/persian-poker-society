@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import ConfirmSubmitButton from "@/app/dashboard/sunday/sessions/[sessionId]/ConfirmSubmitButton";
 import PayoutSummary from "@/app/dashboard/sunday/sessions/[sessionId]/PayoutSummary";
 import SundayAdminTableClient from "@/app/dashboard/sunday/sessions/[sessionId]/SundayAdminTableClient";
@@ -142,12 +143,13 @@ export default async function FridaySessionPage(props: any) {
   }
 
   const supabase = await createClient();
+  const serviceSupabase = createServiceClient();
 
   const { data: userData } = await supabase.auth.getUser();
   const user = userData?.user;
   if (!user) redirect("/login");
 
-  const { data: lifecycle, error } = await supabase
+  const { data: lifecycle, error } = await serviceSupabase
     .rpc("admin_session_lifecycle", { p_session_id: sessionId })
     .maybeSingle();
 
@@ -175,7 +177,103 @@ export default async function FridaySessionPage(props: any) {
     statusLower === "computed" ||
     isAlreadyComputed;
 
-  const { data: sessionPlayersRaw, error: spErr } = await supabase
+  // ── Auto-populate: upsert all Friday registry players; track going RSVPs ───
+  let goingRegistryIds: string[] = [];
+
+  const { data: sessionRow } = await serviceSupabase
+    .from("sessions")
+    .select("starts_at")
+    .eq("id", sessionId)
+    .maybeSingle();
+
+  if (sessionRow?.starts_at) {
+    const { data: group } = await serviceSupabase
+      .from("groups")
+      .select("id")
+      .eq("slug", "friday")
+      .maybeSingle();
+
+    if (group) {
+      const { data: event } = await serviceSupabase
+        .from("events")
+        .select("id")
+        .eq("group_id", group.id)
+        .eq("event_date", sessionRow.starts_at)
+        .maybeSingle();
+
+      if (event) {
+        const { data: goingRsvps } = await serviceSupabase
+          .from("rsvps")
+          .select("user_id")
+          .eq("event_id", event.id)
+          .eq("status", "going");
+
+        const goingUserIds = (goingRsvps ?? [])
+          .map((r: any) => r.user_id)
+          .filter(Boolean);
+
+        if (goingUserIds.length > 0) {
+          const { data: profileRows } = await serviceSupabase
+            .from("profiles")
+            .select("id, email")
+            .in("id", goingUserIds);
+
+          const emails = (profileRows ?? [])
+            .map((p: any) => p.email)
+            .filter(Boolean);
+
+          if (emails.length > 0) {
+            const { data: registryRows } = await serviceSupabase
+              .from("player_registry")
+              .select("id")
+              .in("email", emails);
+
+            goingRegistryIds = (registryRows ?? [])
+              .map((r: any) => r.id)
+              .filter(Boolean);
+          }
+        }
+      }
+
+      const { data: allFridayPlayers } = await serviceSupabase
+        .from("player_registry_groups")
+        .select("player_id")
+        .eq("group_key", "friday");
+
+      const allFridayPlayerIds = (allFridayPlayers ?? [])
+        .map((r: any) => r.player_id)
+        .filter(Boolean);
+
+      if (allFridayPlayerIds.length > 0) {
+        const { data: currentPlayers } = await serviceSupabase
+          .from("session_registry_players")
+          .select("player_id")
+          .eq("session_id", sessionId);
+
+        const currentPlayerIds = new Set(
+          (currentPlayers ?? []).map((r: any) => r.player_id)
+        );
+        const missing = allFridayPlayerIds.filter(
+          (id: string) => !currentPlayerIds.has(id)
+        );
+
+        if (missing.length > 0) {
+          await serviceSupabase
+            .from("session_registry_players")
+            .upsert(
+              missing.map((playerId: string) => ({
+                session_id: sessionId,
+                player_id: playerId,
+              })),
+              { onConflict: "session_id,player_id", ignoreDuplicates: true }
+            );
+        }
+      }
+    }
+  }
+  // ── End auto-populate ─────────────────────────────────────────────────────
+
+  const { data: sessionPlayersRaw, error: spErr } = await serviceSupabase
     .from("session_registry_players")
     .select("player_id")
     .eq("session_id", sessionId);
@@ -189,21 +287,7 @@ export default async function FridaySessionPage(props: any) {
     );
   }
 
-  const { data: fridayApprovedRaw, error: fagErr } = await supabase
-    .from("player_registry_groups")
-    .select("player_id")
-    .eq("group_key", "friday");
-
-  if (fagErr) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h1>Friday Session</h1>
-        <div style={{ color: "red" }}>{fagErr.message}</div>
-      </div>
-    );
-  }
-
-  const { data: entries, error: eErr } = await supabase
+  const { data: entries, error: eErr } = await serviceSupabase
     .from("player_entries")
     .select("registry_player_id, type, amount_usd")
     .eq("session_id", sessionId);
@@ -221,19 +305,13 @@ export default async function FridaySessionPage(props: any) {
     .map((r: any) => r.player_id)
     .filter(Boolean);
 
-  const approvedPlayerIds = (fridayApprovedRaw ?? [])
-    .map((r: any) => r.player_id)
-    .filter(Boolean);
-
-  const allNeededIds = Array.from(new Set([...sessionPlayerIds, ...approvedPlayerIds]));
-
   const playersById = new Map<string, { id: string; full_name: string | null }>();
 
-  if (allNeededIds.length > 0) {
-    const { data: playerRows, error: pErr } = await supabase
+  if (sessionPlayerIds.length > 0) {
+    const { data: playerRows, error: pErr } = await serviceSupabase
       .from("player_registry")
       .select("id, full_name")
-      .in("id", allNeededIds);
+      .in("id", sessionPlayerIds);
 
     if (pErr) {
       return (
@@ -264,8 +342,6 @@ export default async function FridaySessionPage(props: any) {
     entryMap.set(pid, row);
   });
 
-  const sessionPlayerIdSet = new Set(sessionPlayerIds);
-
   const tableRows = sessionPlayerIds
     .map((id: string) => {
       const player = playersById.get(id);
@@ -278,6 +354,11 @@ export default async function FridaySessionPage(props: any) {
       };
     })
     .sort((a, b) => String(a.fullName).localeCompare(String(b.fullName)));
+
+  const goingRegistryIdSet = new Set(goingRegistryIds);
+  const initialCheckedIds = sessionPlayerIds.filter((id: string) =>
+    goingRegistryIdSet.has(id)
+  );
 
   let statusTone: "neutral" | "green" | "gold" | "red" | "blue" = "neutral";
   if (statusLower === "active" || statusLower === "open") statusTone = "green";
@@ -473,6 +554,7 @@ export default async function FridaySessionPage(props: any) {
           sessionId={sessionId}
           initialRows={tableRows}
           disabled={isLockedOrComputed}
+          initialCheckedIds={initialCheckedIds}
           groupKey="friday"
         />
 
