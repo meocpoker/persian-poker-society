@@ -28,6 +28,21 @@ export default function StartSessionClient({
       return;
     }
 
+    // Check for existing session before inserting
+    const { data: existing } = await supabase
+      .from("sessions")
+      .select("id")
+      .eq("group_key", groupKey)
+      .eq("starts_at", startsAt)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing?.id) {
+      window.location.href = `/dashboard/${groupKey}/sessions/${existing.id}`;
+      return;
+    }
+
     const { error: insErr } = await supabase.from("sessions").insert({
       group_key: groupKey,
       format,
