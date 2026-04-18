@@ -149,7 +149,7 @@ export default async function FridaySessionPage(props: any) {
   const user = userData?.user;
   if (!user) redirect("/login");
 
-  const { data: lifecycle, error } = await serviceSupabase
+  const { data: lifecycle, error } = await supabase
     .rpc("admin_session_lifecycle", { p_session_id: sessionId })
     .maybeSingle();
 
