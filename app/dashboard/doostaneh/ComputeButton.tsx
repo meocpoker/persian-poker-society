@@ -383,7 +383,7 @@ export default function ComputeButton({
           </button>
         )}
 
-        {life.can_compute && (
+        {(life.can_compute || (life.is_admin && life.already_computed)) && (
           <button
             style={{
               ...baseButton,
@@ -400,7 +400,7 @@ export default function ComputeButton({
           </button>
         )}
 
-        {!life.can_lock && !life.can_unlock && !life.can_compute && (
+        {!life.can_lock && !life.can_unlock && !life.can_compute && !(life.is_admin && life.already_computed) && (
           <div
             style={{
               fontSize: 13,

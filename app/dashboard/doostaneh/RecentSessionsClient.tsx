@@ -41,7 +41,11 @@ export default function RecentSessionsClient({ sessions }: { sessions: Session[]
   const [showAll, setShowAll] = useState(false);
   const [confirmSessionId, setConfirmSessionId] = useState<string | null>(null);
 
-  const filtered = filterSessions(sessions, query);
+  const validSessions = [...sessions]
+    .filter((s) => s.tournament_number !== null)
+    .sort((a, b) => (b.tournament_number ?? 0) - (a.tournament_number ?? 0));
+
+  const filtered = filterSessions(validSessions, query);
   const visible = showAll ? filtered : filtered.slice(0, DEFAULT_VISIBLE);
   const hasMore = filtered.length > DEFAULT_VISIBLE;
 
@@ -50,7 +54,7 @@ export default function RecentSessionsClient({ sessions }: { sessions: Session[]
     setShowAll(false);
   }
 
-  if (sessions.length === 0) {
+  if (validSessions.length === 0) {
     return (
       <div
         style={{
