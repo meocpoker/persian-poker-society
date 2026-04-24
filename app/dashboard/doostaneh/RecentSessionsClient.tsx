@@ -42,8 +42,12 @@ export default function RecentSessionsClient({ sessions }: { sessions: Session[]
   const [confirmSessionId, setConfirmSessionId] = useState<string | null>(null);
 
   const validSessions = [...sessions]
-    .filter((s) => s.tournament_number !== null)
-    .sort((a, b) => (b.tournament_number ?? 0) - (a.tournament_number ?? 0));
+    .filter((s) => s.tournament_number !== null || (s.external_game_id ?? "").trim() !== "")
+    .sort((a, b) => {
+      const aTime = a.starts_at ? new Date(a.starts_at).getTime() : 0;
+      const bTime = b.starts_at ? new Date(b.starts_at).getTime() : 0;
+      return bTime - aTime;
+    });
 
   const filtered = filterSessions(validSessions, query);
   const visible = showAll ? filtered : filtered.slice(0, DEFAULT_VISIBLE);
