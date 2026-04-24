@@ -243,7 +243,7 @@ export default function DoostanehSessionPage() {
 
   // Auto-sync charity to DB whenever it changes (fire-and-forget)
   useEffect(() => {
-    if (!sessionId || !session?.id || isLockedOrComputed) return;
+    if (!sessionId || !session?.id) return;
     if (prevCharityRef.current === totals.charity) return;
     prevCharityRef.current = totals.charity;
     fetch(`/api/doostaneh/sessions/${sessionId}/set-charity`, {
@@ -615,6 +615,19 @@ export default function DoostanehSessionPage() {
                   sessionId={sessionId}
                   groupKey="doostaneh"
                   onChanged={refresh}
+                  previewData={{
+                    totalCollected: totals.total,
+                    charity: totals.charity,
+                    prizePool: totals.prizePool,
+                    payoutLabel,
+                    winners: [
+                      winner1 ? { place: 1, name: inSessionOptions.find((p) => p.player_id === winner1)?.player_registry?.full_name ?? "?" } : null,
+                      winner2 ? { place: 2, name: inSessionOptions.find((p) => p.player_id === winner2)?.player_registry?.full_name ?? "?" } : null,
+                      winnerCount >= 3 && winner3 ? { place: 3, name: inSessionOptions.find((p) => p.player_id === winner3)?.player_registry?.full_name ?? "?" } : null,
+                      winnerCount >= 4 && winner4 ? { place: 4, name: inSessionOptions.find((p) => p.player_id === winner4)?.player_registry?.full_name ?? "?" } : null,
+                    ].filter((w): w is { place: number; name: string } => w !== null),
+                    wasAlreadyComputed: session?.status === "computed",
+                  }}
                 />
               </SectionCard>
             </div>
@@ -677,7 +690,7 @@ export default function DoostanehSessionPage() {
                       const rowTotal = played
                         ? (v.buyin || 0) + (v.rebuy || 0) + (v.addon || 0)
                         : 0;
-                      const controlsDisabled = !played || saveState === "saving" || isLockedOrComputed;
+                      const controlsDisabled = !played || saveState === "saving";
 
                       return (
                         <tr
@@ -689,12 +702,12 @@ export default function DoostanehSessionPage() {
                             <input
                               type="checkbox"
                               checked={played}
-                              disabled={saveState === "saving" || isLockedOrComputed}
+                              disabled={saveState === "saving"}
                               onChange={(e) => togglePlayed(player.id, e.target.checked)}
                               style={{
                                 width: 16,
                                 height: 16,
-                                cursor: saveState === "saving" || isLockedOrComputed ? "not-allowed" : "pointer",
+                                cursor: saveState === "saving" ? "not-allowed" : "pointer",
                                 accentColor: "#1F7A63",
                               }}
                             />
@@ -839,27 +852,25 @@ export default function DoostanehSessionPage() {
             </div>
 
             {/* Save Changes button */}
-            {!isLockedOrComputed && (
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
-                <button
-                  onClick={saveChanges}
-                  disabled={saveState === "saving" || (!hasChanges && saveState !== "saved")}
-                  style={{
-                    padding: "10px 22px",
-                    borderRadius: 12,
-                    border: "none",
-                    fontWeight: 800,
-                    fontSize: 14,
-                    cursor: saveState === "saving" || (!hasChanges && saveState !== "saved") ? "not-allowed" : "pointer",
-                    background: saveState === "saved" && !hasChanges ? "#1F7A63" : hasChanges || saveState === "saving" ? "#86efac" : "#E3E0D8",
-                    color: saveState === "saved" && !hasChanges ? "#ffffff" : hasChanges || saveState === "saving" ? "#14532d" : "#9AA3A0",
-                    opacity: saveState === "saving" ? 0.7 : 1,
-                  }}
-                >
-                  {saveState === "saving" ? "Saving..." : saveState === "saved" && !hasChanges ? "Saved ✓" : "Save Changes"}
-                </button>
-              </div>
-            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+              <button
+                onClick={saveChanges}
+                disabled={saveState === "saving" || (!hasChanges && saveState !== "saved")}
+                style={{
+                  padding: "10px 22px",
+                  borderRadius: 12,
+                  border: "none",
+                  fontWeight: 800,
+                  fontSize: 14,
+                  cursor: saveState === "saving" || (!hasChanges && saveState !== "saved") ? "not-allowed" : "pointer",
+                  background: saveState === "saved" && !hasChanges ? "#1F7A63" : hasChanges || saveState === "saving" ? "#86efac" : "#E3E0D8",
+                  color: saveState === "saved" && !hasChanges ? "#ffffff" : hasChanges || saveState === "saving" ? "#14532d" : "#9AA3A0",
+                  opacity: saveState === "saving" ? 0.7 : 1,
+                }}
+              >
+                {saveState === "saving" ? "Saving..." : saveState === "saved" && !hasChanges ? "Saved ✓" : "Save Changes"}
+              </button>
+            </div>
           </SectionCard>
         </div>
 
@@ -894,7 +905,7 @@ export default function DoostanehSessionPage() {
                 <select
                   value={winner1}
                   onChange={(e) => { setWinner1(e.target.value); setPlace(1, e.target.value); }}
-                  disabled={!!busy || isLockedOrComputed}
+                  disabled={!!busy}
                   style={{
                     width: "100%",
                     padding: "12px 14px",
@@ -923,7 +934,7 @@ export default function DoostanehSessionPage() {
                 <select
                   value={winner2}
                   onChange={(e) => { setWinner2(e.target.value); setPlace(2, e.target.value); }}
-                  disabled={!!busy || isLockedOrComputed}
+                  disabled={!!busy}
                   style={{
                     width: "100%",
                     padding: "12px 14px",
@@ -953,7 +964,7 @@ export default function DoostanehSessionPage() {
                   <select
                     value={winner3}
                     onChange={(e) => { setWinner3(e.target.value); setPlace(3, e.target.value); }}
-                    disabled={!!busy || isLockedOrComputed}
+                    disabled={!!busy}
                     style={{
                       width: "100%",
                       padding: "12px 14px",
@@ -984,7 +995,7 @@ export default function DoostanehSessionPage() {
                   <select
                     value={winner4}
                     onChange={(e) => { setWinner4(e.target.value); setPlace(4, e.target.value); }}
-                    disabled={!!busy || isLockedOrComputed}
+                    disabled={!!busy}
                     style={{
                       width: "100%",
                       padding: "12px 14px",
